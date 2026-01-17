@@ -1,0 +1,5 @@
+{
+  "name": "Marathon Plan",
+  "description": "An offline-first, iOS-styled marathon training planner that generates personalized 18-week schedules.",
+  "requestFramePermissions": []
+}
