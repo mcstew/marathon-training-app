@@ -95,9 +95,8 @@ All plans are 18 weeks, based on Hal Higdon methodology:
 
 ### Prerequisites
 - Node.js 18+
-- npm or yarn
-- For iOS Simulator: Xcode (from App Store)
-- For physical device: Expo Go app
+- Expo Go app on iPhone (from App Store)
+- Mac and iPhone on same WiFi network
 
 ### Start Development Server
 
@@ -107,18 +106,32 @@ npm install
 npx expo start
 ```
 
-### Testing Options
+### Testing on iPhone (Recommended)
 
-1. **iOS Simulator** (requires Xcode):
-   - Press `i` in the Expo terminal
+1. Install **Expo Go** from App Store
+2. Run `npx expo start` in Terminal.app (needs interactive terminal for QR code)
+3. Scan QR code with **iPhone Camera app** (not Expo Go app)
+4. App opens in Expo Go
 
-2. **Physical iPhone** (with Expo Go):
-   - Install "Expo Go" from App Store
-   - Scan the QR code from terminal with your Camera app
-   - Or enter URL manually: `exp://YOUR_IP:8081`
+**Alternative - Manual URL:**
+```bash
+# Get your Mac's IP
+ipconfig getifaddr en0  # e.g., 192.168.86.207
 
-3. **Web** (limited, for preview):
-   - Press `w` in the Expo terminal
+# Start server (can be non-interactive)
+npx expo start --offline
+```
+Then in Expo Go → "Enter URL manually" → `exp://192.168.86.207:8081`
+
+### Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| SDK version mismatch | Run `npx expo install expo@^54.0.0 --fix` |
+| Port 8081 in use | `lsof -ti:8081 \| xargs kill -9` |
+| Can't connect | Ensure same WiFi network, try `--tunnel` flag |
+
+See also: [EXPO-MOBILE-APP-GUIDE.md](../EXPO-MOBILE-APP-GUIDE.md) for comprehensive reference
 
 ---
 
