@@ -61,14 +61,15 @@ marathon-training-app/
     ├── PLANNING.md              # Full technical spec
     ├── DESIGNER-BRIEF.md        # Designer requirements
     ├── DECISIONS.md             # Architecture decisions
-    └── TEMPLATES.md             # Training plan specs
+    ├── TEMPLATES.md             # Training plan specs
+    └── EXPO-MOBILE-APP-GUIDE.md # Expo/React Native reference
 ```
 
 ---
 
 ## Tech Stack
 
-- **Framework:** React Native with Expo (SDK 52)
+- **Framework:** React Native with Expo (SDK 54)
 - **Language:** TypeScript
 - **State Management:** Zustand with AsyncStorage persistence
 - **Date Handling:** date-fns
@@ -131,7 +132,7 @@ Then in Expo Go → "Enter URL manually" → `exp://192.168.86.207:8081`
 | Port 8081 in use | `lsof -ti:8081 \| xargs kill -9` |
 | Can't connect | Ensure same WiFi network, try `--tunnel` flag |
 
-See also: [EXPO-MOBILE-APP-GUIDE.md](../EXPO-MOBILE-APP-GUIDE.md) for comprehensive reference
+See also: [EXPO-MOBILE-APP-GUIDE.md](./docs/EXPO-MOBILE-APP-GUIDE.md) for comprehensive reference
 
 ---
 
