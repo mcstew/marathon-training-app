@@ -88,7 +88,7 @@ export function ProgressScreen() {
                     ]}
                   />
                 </View>
-                <Text style={styles.barLabel}>W{data.week}</Text>
+                <Text style={styles.barLabel}>{data.week}</Text>
               </View>
             ))}
           </View>
