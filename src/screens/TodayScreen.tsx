@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { format, differenceInDays } from 'date-fns';
 import { WorkoutCard } from '../components/WorkoutCard';
 import { Colors } from '../constants/theme';
+import { parseDateString } from '../services/planGenerator';
 import {
   useAppStore,
   usePlan,
@@ -37,7 +38,7 @@ export function TodayScreen({ onWorkoutPress }: TodayScreenProps) {
 
   if (!plan) return null;
 
-  const daysUntilRace = differenceInDays(new Date(plan.raceDate), today);
+  const daysUntilRace = differenceInDays(parseDateString(plan.raceDate), today);
 
   const handleQuickComplete = () => {
     if (todayData?.workout) {

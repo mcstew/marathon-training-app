@@ -3,6 +3,13 @@ import { TrainingPlan, TrainingWeek, Workout, PlanId, WorkoutType } from '../typ
 
 const PLAN_DURATION_WEEKS = 18;
 
+// Parse a date string (YYYY-MM-DD) safely without timezone shifts
+// This creates a date at noon local time to avoid any day boundary issues
+export function parseDateString(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+}
+
 // Generate a unique ID
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15);
@@ -317,6 +324,15 @@ export function generatePlan(raceDate: Date, planId: PlanId): TrainingPlan {
     throw new Error(`No schedule found for plan: ${planId}`);
   }
 
+  // Normalize race date to avoid timezone issues
+  // Create a new date at noon local time to prevent day shifts
+  const normalizedRaceDate = new Date(
+    raceDate.getFullYear(),
+    raceDate.getMonth(),
+    raceDate.getDate(),
+    12, 0, 0, 0
+  );
+
   const weeks: TrainingWeek[] = [];
 
   // Calculate backwards from race date
@@ -325,22 +341,18 @@ export function generatePlan(raceDate: Date, planId: PlanId): TrainingPlan {
     const weekSchedule = schedule[weekIndex];
     const weekWorkouts: Workout[] = [];
 
-    // For each day in the week (0 = Sunday, 6 = Saturday)
-    for (let dayIndex = 6; dayIndex >= 0; dayIndex--) {
+    // For each day in the week (0 = first day, 6 = last day/race day)
+    for (let dayIndex = 0; dayIndex <= 6; dayIndex++) {
       // Calculate days before race
-      // Week 17, day 6 (Saturday) is 1 day before race
-      // Week 17, day 0 (Sunday) is 7 days before race
-      const daysBeforeRace =
-        (PLAN_DURATION_WEEKS - 1 - weekIndex) * 7 + (7 - dayIndex);
+      // Week 18 (index 17), day 6 = race day (0 days before)
+      // Week 18 (index 17), day 5 = 1 day before race
+      // Week 18 (index 17), day 0 = 6 days before race
+      // Week 17 (index 16), day 6 = 7 days before race
+      const weeksBeforeRace = PLAN_DURATION_WEEKS - 1 - weekIndex;
+      const daysBeforeRace = weeksBeforeRace * 7 + (6 - dayIndex);
 
-      let workoutDate: Date;
-      if (daysBeforeRace === 0) {
-        // Marathon day
-        workoutDate = raceDate;
-      } else {
-        // Apply +1 offset to align dates correctly
-        workoutDate = subDays(raceDate, daysBeforeRace - 1);
-      }
+      // Calculate workout date by subtracting days from race date
+      const workoutDate = subDays(normalizedRaceDate, daysBeforeRace);
 
       const dateStr = format(workoutDate, 'yyyy-MM-dd');
       const dayText = weekSchedule[dayIndex];
@@ -382,7 +394,7 @@ export function generatePlan(raceDate: Date, planId: PlanId): TrainingPlan {
     id: generateId(),
     planId,
     planName: getPlanName(planId),
-    raceDate: format(raceDate, 'yyyy-MM-dd'),
+    raceDate: format(normalizedRaceDate, 'yyyy-MM-dd'),
     startDate,
     weeks,
     createdAt: Date.now(),
@@ -448,7 +460,7 @@ export function calculatePlanStats(plan: TrainingPlan): import('../types').PlanS
   // Days until race
   const daysUntilRace = Math.max(
     0,
-    differenceInDays(new Date(plan.raceDate), today)
+    differenceInDays(parseDateString(plan.raceDate), today)
   );
 
   // Completion rate (only count past workouts)

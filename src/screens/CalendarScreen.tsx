@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, WORKOUT_COLORS } from '../constants/theme';
 import { usePlan } from '../store/useAppStore';
 import { Workout } from '../types';
+import { parseDateString } from '../services/planGenerator';
 
 interface CalendarScreenProps {
   onWorkoutPress: (workoutId: string) => void;
@@ -22,7 +23,15 @@ type ViewMode = 'calendar' | 'plan';
 export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
   const plan = usePlan();
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  // Start calendar on first month that has workouts
+  const firstWorkoutDate = useMemo(() => {
+    if (!plan || plan.weeks.length === 0) return new Date();
+    const firstWorkout = plan.weeks[0].workouts[0];
+    return firstWorkout ? parseDateString(firstWorkout.date) : new Date();
+  }, [plan]);
+
+  const [currentMonth, setCurrentMonth] = useState(firstWorkoutDate);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -41,12 +50,15 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
   if (!plan) return null;
 
   const getWorkoutColor = (workout: Workout) => {
-    const colors = WORKOUT_COLORS[workout.type];
-    return colors.bg;
+    return WORKOUT_COLORS[workout.type].bg;
+  };
+
+  const getWorkoutTextColor = (workout: Workout) => {
+    return WORKOUT_COLORS[workout.type].text;
   };
 
   const getDayLabel = (dateStr: string) => {
-    const date = new Date(dateStr);
+    const date = parseDateString(dateStr);
     return format(date, 'EEE').charAt(0);
   };
 
@@ -106,7 +118,11 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
             return (
               <TouchableOpacity
                 key={dateStr}
-                style={styles.calendarCell}
+                style={[
+                  styles.calendarCell,
+                  workout && { backgroundColor: getWorkoutColor(workout) },
+                  workout?.isCompleted && styles.calendarCellCompleted,
+                ]}
                 onPress={() => workout && onWorkoutPress(workout.id)}
                 disabled={!workout}
                 activeOpacity={0.7}
@@ -115,28 +131,14 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
                   styles.calendarDayNumber,
                   isToday && styles.calendarDayToday,
                   !workout && styles.calendarDayNoWorkout,
+                  workout && { color: getWorkoutTextColor(workout) },
                 ]}>
                   {format(day, 'd')}
                 </Text>
                 {workout && (
-                  <View
-                    style={[
-                      styles.calendarWorkoutDot,
-                      { backgroundColor: getWorkoutColor(workout) },
-                      workout.isCompleted && styles.calendarWorkoutCompleted,
-                    ]}
-                  >
-                    {workout.distance && workout.type !== 'rest' && workout.type !== 'cross' ? (
-                      <Text style={styles.calendarWorkoutDistance}>{workout.distance}</Text>
-                    ) : workout.type === 'cross' ? (
-                      <Text style={styles.calendarWorkoutCross}>XT</Text>
-                    ) : null}
-                    {workout.isCompleted && (
-                      <View style={styles.calendarCheckmark}>
-                        <Ionicons name="checkmark" size={10} color={Colors.successDark} />
-                      </View>
-                    )}
-                  </View>
+                  <Text style={[styles.calendarWorkoutLabel, { color: getWorkoutTextColor(workout) }]}>
+                    {workout.isCompleted ? '✓' : workout.type === 'rest' ? 'Rest' : workout.type === 'cross' ? 'XT' : workout.type === 'race' ? '🏁' : workout.distance ? `${workout.distance}mi` : ''}
+                  </Text>
                 )}
               </TouchableOpacity>
             );
@@ -199,18 +201,14 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
                       workout.isSkipped && styles.workoutCellSkipped,
                     ]}
                   >
-                    {workout.isCompleted && (
-                      <View style={styles.completedOverlay}>
-                        <Text style={styles.checkmark}>✓</Text>
-                      </View>
-                    )}
-
-                    {workout.type === 'rest' ? null : workout.type === 'cross' ? (
-                      <Text style={styles.crossLabel}>XT</Text>
+                    {workout.isCompleted ? (
+                      <Text style={styles.checkmark}>✓</Text>
+                    ) : workout.type === 'rest' ? null : workout.type === 'cross' ? (
+                      <Text style={[styles.crossLabel, { color: getWorkoutTextColor(workout) }]}>XT</Text>
                     ) : workout.type === 'race' ? (
                       <Text style={styles.raceEmoji}>🏁</Text>
                     ) : (
-                      <Text style={styles.distanceLabel}>
+                      <Text style={[styles.distanceLabel, { color: getWorkoutTextColor(workout) }]}>
                         {workout.distance}
                       </Text>
                     )}
@@ -229,7 +227,7 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
       <View style={styles.header}>
         <Text style={styles.title}>Calendar</Text>
         <Text style={styles.subtitle}>
-          Race Day: {format(new Date(plan.raceDate), 'MMM d, yyyy')}
+          Race Day: {format(parseDateString(plan.raceDate), 'MMM d, yyyy')}
         </Text>
       </View>
 
@@ -362,50 +360,30 @@ const styles = StyleSheet.create({
   },
   calendarCell: {
     width: '14.28%',
-    aspectRatio: 0.85,
+    aspectRatio: 1,
     alignItems: 'center',
-    paddingVertical: 4,
-  },
-  calendarDayNumber: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: Colors.gray700,
+    justifyContent: 'center',
+    borderRadius: 8,
     marginBottom: 4,
   },
+  calendarCellCompleted: {
+    opacity: 0.7,
+  },
+  calendarDayNumber: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.gray700,
+  },
   calendarDayToday: {
-    color: Colors.primary,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   calendarDayNoWorkout: {
     color: Colors.gray300,
   },
-  calendarWorkoutDot: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  calendarWorkoutCompleted: {
-    opacity: 0.6,
-  },
-  calendarWorkoutDistance: {
-    fontSize: 11,
+  calendarWorkoutLabel: {
+    fontSize: 10,
     fontWeight: '700',
-    color: Colors.gray700,
-  },
-  calendarWorkoutCross: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: Colors.gray600,
-  },
-  calendarCheckmark: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    backgroundColor: Colors.white,
-    borderRadius: 8,
-    padding: 1,
+    marginTop: 1,
   },
   legendContainer: {
     marginTop: 24,
@@ -481,30 +459,18 @@ const styles = StyleSheet.create({
   workoutCellSkipped: {
     opacity: 0.4,
   },
-  completedOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.4)',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   checkmark: {
     fontSize: 16,
     fontWeight: '700',
     color: Colors.successDark,
   },
   distanceLabel: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
-    color: Colors.white,
-    textShadowColor: 'rgba(0,0,0,0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   crossLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: Colors.white,
+    fontSize: 11,
+    fontWeight: '700',
   },
   raceEmoji: {
     fontSize: 20,

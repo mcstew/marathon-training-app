@@ -13,6 +13,7 @@ import { Button } from './Button';
 import { Colors, WORKOUT_COLORS } from '../constants/theme';
 import { Workout } from '../types';
 import { useAppStore } from '../store/useAppStore';
+import { parseDateString } from '../services/planGenerator';
 
 interface WorkoutModalProps {
   workout: Workout | null;
@@ -26,7 +27,7 @@ export function WorkoutModal({ workout, visible, onClose }: WorkoutModalProps) {
   if (!workout) return null;
 
   const colors = WORKOUT_COLORS[workout.type];
-  const dateFormatted = format(new Date(workout.date), 'EEEE, MMMM d');
+  const dateFormatted = format(parseDateString(workout.date), 'EEEE, MMMM d');
 
   const handleComplete = () => {
     toggleWorkoutCompletion(workout.id);

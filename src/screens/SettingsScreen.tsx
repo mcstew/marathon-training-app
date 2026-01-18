@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { Colors } from '../constants/theme';
+import { parseDateString } from '../services/planGenerator';
 import { useAppStore, usePlan, useUserConfig } from '../store/useAppStore';
 
 interface SettingRowProps {
@@ -123,7 +124,7 @@ export function SettingsScreen() {
                 <Text style={styles.planInfoLabel}>Current Plan</Text>
                 <Text style={styles.planInfoValue}>{plan.planName}</Text>
                 <Text style={styles.planInfoSubtext}>
-                  Race: {format(new Date(plan.raceDate), 'MMMM d, yyyy')}
+                  Race: {format(parseDateString(plan.raceDate), 'MMMM d, yyyy')}
                 </Text>
               </View>
             )}
