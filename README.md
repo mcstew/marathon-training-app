@@ -149,6 +149,8 @@ See also: [EXPO-MOBILE-APP-GUIDE.md](./docs/EXPO-MOBILE-APP-GUIDE.md) for compre
 - [x] Settings (units toggle, reset app)
 - [x] Data persistence with AsyncStorage
 - [x] Tab navigation
+- [x] Phase 0 web/admin layer scaffold (`web/`)
+- [x] Basic app event telemetry (`app_events` migration)
 
 ## Features Not Yet Implemented
 
@@ -157,17 +159,33 @@ See also: [EXPO-MOBILE-APP-GUIDE.md](./docs/EXPO-MOBILE-APP-GUIDE.md) for compre
 - [ ] Dark mode toggle (system mode works)
 - [ ] Edit workout details (distance, time, notes)
 - [ ] Multiple plans support
+- [ ] Apply Phase 0 analytics migration in Supabase
+- [ ] Deploy `web/` as the marketing/admin layer
 
 ---
 
 ## Monetization
 
-**Free** - No paywall, no subscriptions, no ads.
+**Current product stance:** Free plan generation and tracking, with optional
+paid features later once we have enough usage data to know what is valuable.
 
 Potential future premium features:
 - AI-powered plan adjustments
 - Advanced analytics
 - Custom plan builder
+
+## Web/Admin Layer
+
+The `web/` package is a separate Next.js app intended to become the
+marketing/admin surface for `marathontrainingplan.com`. This lets the Expo app
+focus on the actual runner workflow while the web layer handles SEO, admin,
+observability, future billing, and server-only Supabase access.
+
+Run it from the repo root with:
+
+```bash
+npm run admin:dev
+```
 
 ---
 

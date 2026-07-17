@@ -1,0 +1,14 @@
+# Marathon Training Plan - robots.txt
+# https://marathontrainingplan.com
+
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://marathontrainingplan.com/sitemap.xml
+
+# Disallow admin routes (when added)
+Disallow: /admin/
+
+# Disallow API routes
+Disallow: /api/
