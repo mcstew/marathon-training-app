@@ -19,6 +19,7 @@ import { PlanId } from '../types';
 import { addWeeks, differenceInWeeks, format } from 'date-fns';
 import { WebLandingPage } from '../components/WebLandingPage';
 import { trackEventFireAndForget } from '../services/analytics';
+import { useResponsive } from '../utils/useResponsive';
 
 type Step = 'landing' | 'welcome' | 'date' | 'plan';
 
@@ -68,6 +69,7 @@ function getInitialStep(): Step {
 export function OnboardingScreen({ onLoginPress }: OnboardingScreenProps) {
   // On the app subdomain, start in the product flow. The marketing site owns the public landing page.
   const [step, setStep] = useState<Step>(() => getInitialStep());
+  const { isDesktop } = useResponsive();
   const startsAtDate = useRef(step === 'date');
   const [raceDate, setRaceDate] = useState<Date | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<PlanId | null>(null);
@@ -338,9 +340,12 @@ export function OnboardingScreen({ onLoginPress }: OnboardingScreenProps) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {step === 'welcome' && renderWelcome()}
-      {step === 'date' && renderDatePicker()}
-      {step === 'plan' && renderPlanSelection()}
+      {/* Desktop web centers the flow in a card-width column */}
+      <View style={[styles.stepWrapper, isDesktop && styles.stepWrapperDesktop]}>
+        {step === 'welcome' && renderWelcome()}
+        {step === 'date' && renderDatePicker()}
+        {step === 'plan' && renderPlanSelection()}
+      </View>
     </SafeAreaView>
   );
 }
@@ -349,6 +354,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.gray50,
+  },
+  stepWrapper: {
+    flex: 1,
+  },
+  stepWrapperDesktop: {
+    width: '100%',
+    maxWidth: 560,
+    alignSelf: 'center',
   },
   stepContainer: {
     flex: 1,

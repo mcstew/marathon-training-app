@@ -15,6 +15,7 @@ import { Workout } from '../types';
 import { useAppStore, useUserConfig } from '../store/useAppStore';
 import { parseDateString } from '../services/planGenerator';
 import { displayDistanceValue, unitLong } from '../utils/units';
+import { useResponsive } from '../utils/useResponsive';
 import { trackEventFireAndForget } from '../services/analytics';
 
 interface WorkoutModalProps {
@@ -26,6 +27,7 @@ interface WorkoutModalProps {
 export function WorkoutModal({ workout, visible, onClose }: WorkoutModalProps) {
   const { toggleWorkoutCompletion, skipWorkout } = useAppStore();
   const { units } = useUserConfig();
+  const { isDesktop } = useResponsive();
 
   if (!workout) return null;
 
@@ -64,11 +66,16 @@ export function WorkoutModal({ workout, visible, onClose }: WorkoutModalProps) {
       onRequestClose={onClose}
     >
       <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
+        <View style={[styles.overlay, isDesktop && styles.overlayDesktop]}>
           <TouchableWithoutFeedback>
-            <View style={styles.sheet}>
+            <View style={[styles.sheet, isDesktop && styles.sheetDesktop]}>
               {/* Close button */}
-              <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={onClose}
+                accessibilityRole="button"
+                accessibilityLabel="Close workout details"
+              >
                 <Ionicons name="close" size={20} color={Colors.gray600} />
               </TouchableOpacity>
 
@@ -155,12 +162,23 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
   },
+  overlayDesktop: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
   sheet: {
     backgroundColor: Colors.white,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
     paddingBottom: 40,
+  },
+  sheetDesktop: {
+    borderRadius: 24,
+    paddingBottom: 24,
+    width: '100%',
+    maxWidth: 480,
   },
   closeButton: {
     position: 'absolute',

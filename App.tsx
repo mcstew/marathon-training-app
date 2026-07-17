@@ -11,7 +11,8 @@ import { CalendarScreen } from './src/screens/CalendarScreen';
 import { ProgressScreen } from './src/screens/ProgressScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { AuthScreen } from './src/screens/AuthScreen';
-import { TabBar, TabName } from './src/components/TabBar';
+import { TabBar, SideNav, TabName } from './src/components/TabBar';
+import { useResponsive } from './src/utils/useResponsive';
 import { WorkoutModal } from './src/components/WorkoutModal';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { Colors } from './src/constants/theme';
@@ -71,6 +72,7 @@ function AppContent() {
   const isSyncing = useIsSyncing();
 
   const [currentTab, setCurrentTab] = useState<TabName>('today');
+  const { isDesktop } = useResponsive();
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
   const [authDeepLinkMode, setAuthDeepLinkMode] = useState<AuthDeepLinkMode>(() => getInitialAuthDeepLinkMode());
   const syncedUserIdRef = useRef<string | null>(null);
@@ -142,9 +144,8 @@ function AppContent() {
     return <OnboardingScreen onLoginPress={() => setAuthDeepLinkMode('signIn')} />;
   }
 
-  // Main app with tab navigation
-  return (
-    <View style={styles.container}>
+  const screens = (
+    <>
       {currentTab === 'today' && (
         <TodayScreen
           onWorkoutPress={handleWorkoutPress}
@@ -156,6 +157,31 @@ function AppContent() {
       )}
       {currentTab === 'progress' && <ProgressScreen />}
       {currentTab === 'settings' && <SettingsScreen />}
+    </>
+  );
+
+  // Desktop web: sidebar navigation + centered content column.
+  // Phone (and native): the original bottom-tab layout.
+  if (isDesktop) {
+    return (
+      <View style={styles.desktopRoot}>
+        <SideNav currentTab={currentTab} onTabChange={setCurrentTab} />
+        <View style={styles.desktopContent}>
+          <View style={styles.desktopContentInner}>{screens}</View>
+        </View>
+
+        <WorkoutModal
+          workout={selectedWorkout}
+          visible={!!selectedWorkoutId}
+          onClose={handleCloseModal}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {screens}
 
       <TabBar currentTab={currentTab} onTabChange={setCurrentTab} />
 
@@ -183,6 +209,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.gray50,
+  },
+  desktopRoot: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: Colors.gray50,
+  },
+  desktopContent: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  desktopContentInner: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 840,
   },
   loadingContainer: {
     flex: 1,
