@@ -99,6 +99,55 @@ const faqs = [
   },
 ];
 
+
+const structuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://marathontrainingplan.com/#website",
+      url: "https://marathontrainingplan.com",
+      name: "Marathon Training Plan",
+      description:
+        "Free personalized 18-week marathon training plans with workout tracking.",
+    },
+    {
+      "@type": "WebApplication",
+      "@id": "https://marathontrainingplan.com/#app",
+      name: "Marathon Training Plan",
+      url: "https://marathontrainingplan.com",
+      applicationCategory: "HealthApplication",
+      operatingSystem: "Web",
+      description:
+        "Free personalized marathon training plans. Get an 18-week schedule tailored to your race day, track workouts, and sync across devices.",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+      },
+      featureList: [
+        "18-week marathon training plans",
+        "Six difficulty levels from novice to advanced",
+        "Workout tracking and progress stats",
+        "Works offline",
+        "Free cross-device sync",
+      ],
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://marathontrainingplan.com/#faq",
+      mainEntity: faqs.map((faq) => ({
+        "@type": "Question",
+        name: faq.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: faq.answer,
+        },
+      })),
+    },
+  ],
+};
+
 export default function HomePage() {
   const appBaseHref = process.env.NEXT_PUBLIC_APP_URL ?? "#how-it-works";
   const appRootHref = appBaseHref.startsWith("#") ? appBaseHref : appBaseHref.replace(/\/$/, "");
@@ -110,6 +159,10 @@ export default function HomePage() {
   return (
     <main className="page">
       <TrackEvent eventName="marketing_landing_viewed" properties={{ surface: "next_web" }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
       <div className="container">
         <nav className="marketing-nav" aria-label="Primary">
           <Link href="/" className="brand">

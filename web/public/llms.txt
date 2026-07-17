@@ -1,0 +1,21 @@
+# Marathon Training Plan
+
+> Free personalized 18-week marathon training plans at marathontrainingplan.com. Pick your race date and experience level, get a day-by-day schedule counting down to race day, and track every workout. No account required to generate a plan; a free account adds cross-device sync. Works offline. No ads, no subscription for the core product.
+
+## What it does
+
+- Generates an 18-week marathon training schedule backward from your race date
+- Six plan levels: Novice 1, Novice 2, Intermediate 1, Intermediate 2, Advanced 1, Advanced 2 (based on proven periodization principles: easy runs, long runs, marathon-pace work, cross-training, and rest days)
+- Tracks workout completion, streaks, weekly mileage, and completion rate
+- Miles or kilometers; phone-friendly and desktop web layouts
+
+## Key facts
+
+- All plans are 18 weeks; peak long runs of about 20 miles (32 km) before a taper
+- First-time marathoners are steered to Novice 1
+- Plans can start mid-program when a race is less than 18 weeks away
+- The app runs at https://app.marathontrainingplan.com (create a plan: https://app.marathontrainingplan.com/?start=race-date)
+
+## Pages
+
+- [Home](https://marathontrainingplan.com): features, how it works, FAQ

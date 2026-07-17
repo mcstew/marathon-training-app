@@ -20,7 +20,7 @@ const additionalMeta = `
     <meta name="title" content="Marathon Training Plan - Free 18-Week Training Schedules" />
     <meta name="keywords" content="marathon training plan, marathon training schedule, 18 week marathon plan, hal higdon marathon, free marathon training, running plan, marathon preparation, first marathon training, beginner marathon plan" />
     <meta name="author" content="Marathon Training Plan" />
-    <meta name="robots" content="index, follow" />
+    <meta name="robots" content="noindex, follow" />
     <link rel="canonical" href="https://marathontrainingplan.com/" />
 
     <!-- Open Graph / Facebook -->
