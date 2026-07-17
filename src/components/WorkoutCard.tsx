@@ -1,8 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { format } from 'date-fns';
 import { Workout } from '../types';
 import { Colors, WORKOUT_COLORS } from '../constants/theme';
+import { useUserConfig } from '../store/useAppStore';
+import { parseDateString } from '../services/planGenerator';
+import { displayDistanceValue, unitAbbrev } from '../utils/units';
 
 interface WorkoutCardProps {
   workout: Workout;
@@ -18,14 +22,11 @@ export function WorkoutCard({
   compact = false,
 }: WorkoutCardProps) {
   const colors = WORKOUT_COLORS[workout.type];
+  const { units } = useUserConfig();
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    });
+    // parseDateString avoids the UTC shift new Date('YYYY-MM-DD') causes
+    return format(parseDateString(dateStr), 'EEE, MMM d');
   };
 
   const getStatusIcon = () => {
@@ -84,8 +85,10 @@ export function WorkoutCard({
         <View style={styles.main}>
           {workout.distance ? (
             <View style={styles.distanceContainer}>
-              <Text style={styles.distance}>{workout.distance}</Text>
-              <Text style={styles.unit}>{workout.unit}</Text>
+              <Text style={styles.distance}>
+                {displayDistanceValue(workout.distance, units)}
+              </Text>
+              <Text style={styles.unit}>{unitAbbrev(units)}</Text>
             </View>
           ) : (
             <Text style={styles.title}>{workout.title}</Text>

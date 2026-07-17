@@ -12,8 +12,9 @@ import { format } from 'date-fns';
 import { Button } from './Button';
 import { Colors, WORKOUT_COLORS } from '../constants/theme';
 import { Workout } from '../types';
-import { useAppStore } from '../store/useAppStore';
+import { useAppStore, useUserConfig } from '../store/useAppStore';
 import { parseDateString } from '../services/planGenerator';
+import { displayDistanceValue, unitLong } from '../utils/units';
 import { trackEventFireAndForget } from '../services/analytics';
 
 interface WorkoutModalProps {
@@ -24,6 +25,7 @@ interface WorkoutModalProps {
 
 export function WorkoutModal({ workout, visible, onClose }: WorkoutModalProps) {
   const { toggleWorkoutCompletion, skipWorkout } = useAppStore();
+  const { units } = useUserConfig();
 
   if (!workout) return null;
 
@@ -93,8 +95,10 @@ export function WorkoutModal({ workout, visible, onClose }: WorkoutModalProps) {
 
                 {workout.distance ? (
                   <View style={styles.distanceContainer}>
-                    <Text style={styles.distance}>{workout.distance}</Text>
-                    <Text style={styles.unit}>Miles</Text>
+                    <Text style={styles.distance}>
+                      {displayDistanceValue(workout.distance, units)}
+                    </Text>
+                    <Text style={styles.unit}>{unitLong(units)}</Text>
                   </View>
                 ) : (
                   <Text style={styles.title}>{workout.title}</Text>

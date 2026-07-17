@@ -2,11 +2,13 @@ import React from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../constants/theme';
-import { usePlan, usePlanStats } from '../store/useAppStore';
+import { usePlan, usePlanStats, useUserConfig } from '../store/useAppStore';
+import { displayDistanceValue, unitLong } from '../utils/units';
 
 export function ProgressScreen() {
   const plan = usePlan();
   const stats = usePlanStats();
+  const { units } = useUserConfig();
 
   if (!plan || !stats) return null;
 
@@ -42,9 +44,9 @@ export function ProgressScreen() {
               <Text style={styles.statLabelLight}>Total Distance</Text>
             </View>
             <Text style={styles.statNumberLight}>
-              {stats.totalCompletedMiles.toFixed(1)}
+              {displayDistanceValue(stats.totalCompletedMiles, units)}
             </Text>
-            <Text style={styles.statUnitLight}>miles</Text>
+            <Text style={styles.statUnitLight}>{unitLong(units).toLowerCase()}</Text>
           </View>
 
           <View style={styles.statCard}>

@@ -10,10 +10,11 @@ import {
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, WORKOUT_COLORS } from '../constants/theme';
-import { usePlan } from '../store/useAppStore';
+import { usePlan, useUserConfig } from '../store/useAppStore';
 import { Workout } from '../types';
 import { parseDateString } from '../services/planGenerator';
 import { todayLocalStr } from '../utils/dates';
+import { displayDistanceValue, formatDistance, unitAbbrev } from '../utils/units';
 
 interface CalendarScreenProps {
   onWorkoutPress: (workoutId: string) => void;
@@ -23,6 +24,7 @@ type ViewMode = 'calendar' | 'plan';
 
 export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
   const plan = usePlan();
+  const { units } = useUserConfig();
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
 
   // Always start calendar on current month (today)
@@ -141,7 +143,7 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
                 </Text>
                 {workout && (
                   <Text style={[styles.calendarWorkoutLabel, { color: getWorkoutTextColor(workout) }]}>
-                    {workout.isCompleted ? '✓' : workout.type === 'rest' ? 'Rest' : workout.type === 'cross' ? 'XT' : workout.type === 'race' ? '🏁' : workout.distance ? `${workout.distance}mi` : ''}
+                    {workout.isCompleted ? '✓' : workout.type === 'rest' ? 'Rest' : workout.type === 'cross' ? 'XT' : workout.type === 'race' ? '🏁' : workout.distance ? `${displayDistanceValue(workout.distance, units)}${unitAbbrev(units)}` : ''}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -177,7 +179,7 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
           <View style={styles.weekHeader}>
             <Text style={styles.weekTitle}>Week {week.weekNumber}</Text>
             <Text style={styles.weekMileage}>
-              {week.totalPlannedMileage} mi total
+              {formatDistance(week.totalPlannedMileage, units)} total
             </Text>
           </View>
 
@@ -213,7 +215,7 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
                       <Text style={styles.raceEmoji}>🏁</Text>
                     ) : (
                       <Text style={[styles.distanceLabel, { color: getWorkoutTextColor(workout) }]}>
-                        {workout.distance}
+                        {workout.distance ? displayDistanceValue(workout.distance, units) : ''}
                       </Text>
                     )}
                   </View>
