@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TrainingPlan, UserConfig, PlanId, Workout } from '../types';
 import { generatePlan, calculatePlanStats } from '../services/planGenerator';
+import { localDateStr, todayLocalStr } from '../utils/dates';
 import {
   performInitialSync,
   processSyncQueue,
@@ -367,7 +368,7 @@ export const useTodayWorkout = () => {
   const plan = useAppStore(state => state.plan);
   if (!plan) return null;
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayLocalStr();
 
   for (const week of plan.weeks) {
     const workout = week.workouts.find(w => w.date === today);
@@ -384,7 +385,7 @@ export const useCurrentWeek = () => {
   const plan = useAppStore(state => state.plan);
   if (!plan) return null;
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayLocalStr();
 
   for (const week of plan.weeks) {
     if (week.startDate <= today && today <= week.endDate) {
@@ -419,8 +420,8 @@ export const useCalendarWeekWorkouts = () => {
   weekEnd.setDate(weekStart.getDate() + 6);
   weekEnd.setHours(23, 59, 59, 999);
 
-  const weekStartStr = weekStart.toISOString().split('T')[0];
-  const weekEndStr = weekEnd.toISOString().split('T')[0];
+  const weekStartStr = localDateStr(weekStart);
+  const weekEndStr = localDateStr(weekEnd);
 
   // Collect all workouts in this calendar week
   const workouts: import('../types').Workout[] = [];

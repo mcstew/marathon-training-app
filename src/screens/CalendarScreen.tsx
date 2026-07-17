@@ -13,6 +13,7 @@ import { Colors, WORKOUT_COLORS } from '../constants/theme';
 import { usePlan } from '../store/useAppStore';
 import { Workout } from '../types';
 import { parseDateString } from '../services/planGenerator';
+import { todayLocalStr } from '../utils/dates';
 
 interface CalendarScreenProps {
   onWorkoutPress: (workoutId: string) => void;
@@ -27,7 +28,7 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
   // Always start calendar on current month (today)
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayLocalStr();
 
   // Build a map of date -> workout for quick lookup
   const workoutsByDate = useMemo(() => {
