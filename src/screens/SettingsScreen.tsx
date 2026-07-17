@@ -43,6 +43,8 @@ function SettingRow({ icon, label, value, onPress, destructive }: SettingRowProp
       onPress={onPress}
       disabled={!onPress}
       activeOpacity={0.7}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={value ? `${label}: ${value}` : label}
     >
       <View style={styles.settingLeft}>
         <View
@@ -179,6 +181,8 @@ export function SettingsScreen() {
                   onPress={handleSync}
                   disabled={isSyncing}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Sync status: ${getSyncStatusText()}. Tap to sync now`}
                 >
                   <View style={styles.settingLeft}>
                     <View style={styles.settingIconContainer}>

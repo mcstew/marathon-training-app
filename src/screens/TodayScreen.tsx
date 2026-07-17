@@ -235,6 +235,8 @@ export function TodayScreen({ onWorkoutPress, onViewCalendar }: TodayScreenProps
             style={styles.quickCompleteButton}
             onPress={handleQuickComplete}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Mark today's workout complete"
           >
             <Ionicons name="checkmark-circle" size={24} color={Colors.white} />
             <Text style={styles.quickCompleteText}>Mark Complete</Text>

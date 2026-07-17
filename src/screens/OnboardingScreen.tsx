@@ -178,7 +178,11 @@ export function OnboardingScreen({ onLoginPress }: OnboardingScreenProps) {
     <View style={styles.stepContainer}>
       <View style={styles.headerSection}>
         {!startsAtDate.current && (
-          <TouchableOpacity onPress={() => setStep('welcome')}>
+          <TouchableOpacity
+            onPress={() => setStep('welcome')}
+            accessibilityRole="button"
+            accessibilityLabel="Back to welcome"
+          >
             <Ionicons name="arrow-back" size={24} color={Colors.gray600} />
           </TouchableOpacity>
         )}
@@ -195,6 +199,7 @@ export function OnboardingScreen({ onLoginPress }: OnboardingScreenProps) {
             <Ionicons name="calendar-outline" size={24} color={Colors.primary} />
             <input
               type="date"
+              aria-label="Race date"
               style={{
                 flex: 1,
                 fontSize: 18,
@@ -215,6 +220,12 @@ export function OnboardingScreen({ onLoginPress }: OnboardingScreenProps) {
             <TouchableOpacity
               style={styles.dateButton}
               onPress={() => setShowDatePicker(true)}
+              accessibilityRole="button"
+              accessibilityLabel={
+                raceDate
+                  ? `Race date: ${format(raceDate, 'MMMM d, yyyy')}. Tap to change`
+                  : 'Select race date'
+              }
             >
               <Ionicons name="calendar-outline" size={24} color={Colors.primary} />
               <Text style={styles.dateButtonText}>
@@ -275,7 +286,11 @@ export function OnboardingScreen({ onLoginPress }: OnboardingScreenProps) {
   const renderPlanSelection = () => (
     <View style={styles.stepContainer}>
       <View style={styles.headerSection}>
-        <TouchableOpacity onPress={() => setStep('date')}>
+        <TouchableOpacity
+          onPress={() => setStep('date')}
+          accessibilityRole="button"
+          accessibilityLabel="Back to race date"
+        >
           <Ionicons name="arrow-back" size={24} color={Colors.gray600} />
         </TouchableOpacity>
       </View>
@@ -301,6 +316,9 @@ export function OnboardingScreen({ onLoginPress }: OnboardingScreenProps) {
             ]}
             onPress={() => setSelectedPlanId(plan.id)}
             activeOpacity={0.7}
+            accessibilityRole="radio"
+            accessibilityLabel={`${plan.name}. ${plan.description} ${plan.runsPerWeek} runs per week, peak ${plan.peakMileage} miles`}
+            accessibilityState={{ selected: selectedPlanId === plan.id }}
           >
             <View style={styles.planCardHeader}>
               <Text style={styles.planName}>{plan.name}</Text>

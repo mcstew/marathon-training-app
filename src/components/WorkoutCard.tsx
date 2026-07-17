@@ -45,6 +45,15 @@ export function WorkoutCard({
     );
   };
 
+  const statusText = workout.isCompleted
+    ? 'completed'
+    : workout.isSkipped
+    ? 'skipped'
+    : 'not completed';
+  const distanceText = workout.distance
+    ? `${displayDistanceValue(workout.distance, units)} ${unitAbbrev(units)}`
+    : workout.title;
+
   return (
     <TouchableOpacity
       style={[
@@ -55,6 +64,8 @@ export function WorkoutCard({
       onPress={onPress}
       activeOpacity={0.7}
       disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={`${formatDate(workout.date)}: ${distanceText}, ${statusText}`}
     >
       <View style={styles.content}>
         {showDate && (

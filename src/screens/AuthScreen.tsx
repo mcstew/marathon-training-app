@@ -136,7 +136,12 @@ export function AuthScreen({ onClose, onSuccess, initialMode = 'signIn' }: AuthS
           secureTextEntry={!showPassword}
           autoCapitalize="none"
         />
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+        <TouchableOpacity
+          onPress={() => setShowPassword(!showPassword)}
+          style={styles.eyeIcon}
+          accessibilityRole="button"
+          accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+        >
           <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={Colors.gray400} />
         </TouchableOpacity>
       </View>
@@ -199,7 +204,12 @@ export function AuthScreen({ onClose, onSuccess, initialMode = 'signIn' }: AuthS
           secureTextEntry={!showPassword}
           autoCapitalize="none"
         />
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+        <TouchableOpacity
+          onPress={() => setShowPassword(!showPassword)}
+          style={styles.eyeIcon}
+          accessibilityRole="button"
+          accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+        >
           <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={Colors.gray400} />
         </TouchableOpacity>
       </View>
@@ -326,7 +336,12 @@ export function AuthScreen({ onClose, onSuccess, initialMode = 'signIn' }: AuthS
           showsVerticalScrollIndicator={false}
         >
           {onClose && (
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close sign in"
+            >
               <Ionicons name="close" size={28} color={Colors.gray600} />
             </TouchableOpacity>
           )}

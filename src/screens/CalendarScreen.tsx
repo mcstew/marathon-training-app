@@ -82,10 +82,20 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
       >
         {/* Month Navigation */}
         <View style={styles.monthNav}>
-          <TouchableOpacity onPress={goToPrevMonth} style={styles.monthNavButton}>
+          <TouchableOpacity
+            onPress={goToPrevMonth}
+            style={styles.monthNavButton}
+            accessibilityRole="button"
+            accessibilityLabel="Previous month"
+          >
             <Ionicons name="chevron-back" size={24} color={Colors.gray600} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={goToToday} style={styles.monthTitleButton}>
+          <TouchableOpacity
+            onPress={goToToday}
+            style={styles.monthTitleButton}
+            accessibilityRole="button"
+            accessibilityLabel={`${format(currentMonth, 'MMMM yyyy')}. Tap to jump to today`}
+          >
             <Text style={styles.monthTitle}>
               {format(currentMonth, 'MMMM yyyy')}
             </Text>
@@ -93,7 +103,12 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
               <Text style={styles.todayLink}>Today</Text>
             )}
           </TouchableOpacity>
-          <TouchableOpacity onPress={goToNextMonth} style={styles.monthNavButton}>
+          <TouchableOpacity
+            onPress={goToNextMonth}
+            style={styles.monthNavButton}
+            accessibilityRole="button"
+            accessibilityLabel="Next month"
+          >
             <Ionicons name="chevron-forward" size={24} color={Colors.gray600} />
           </TouchableOpacity>
         </View>
@@ -132,6 +147,18 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
                 onPress={() => workout && onWorkoutPress(workout.id)}
                 disabled={!workout}
                 activeOpacity={0.7}
+                accessibilityRole={workout ? 'button' : undefined}
+                accessibilityLabel={
+                  workout
+                    ? `${format(day, 'MMMM d')}: ${workout.title}${
+                        workout.isCompleted
+                          ? ', completed'
+                          : workout.isSkipped
+                          ? ', skipped'
+                          : ''
+                      }`
+                    : format(day, 'MMMM d')
+                }
               >
                 <Text style={[
                   styles.calendarDayNumber,
@@ -193,6 +220,17 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
                   style={styles.dayContainer}
                   onPress={() => onWorkoutPress(workout.id)}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Week ${week.weekNumber}, ${format(
+                    parseDateString(workout.date),
+                    'EEEE MMMM d'
+                  )}: ${workout.title}${
+                    workout.isCompleted
+                      ? ', completed'
+                      : workout.isSkipped
+                      ? ', skipped'
+                      : ''
+                  }`}
                 >
                   <Text
                     style={[styles.dayLabel, isToday && styles.dayLabelToday]}
@@ -238,10 +276,13 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
       </View>
 
       {/* View Toggle */}
-      <View style={styles.toggleContainer}>
+      <View style={styles.toggleContainer} accessibilityRole="tablist">
         <TouchableOpacity
           style={[styles.toggleButton, viewMode === 'calendar' && styles.toggleButtonActive]}
           onPress={() => setViewMode('calendar')}
+          accessibilityRole="tab"
+          accessibilityLabel="Calendar view"
+          accessibilityState={{ selected: viewMode === 'calendar' }}
         >
           <Ionicons
             name="calendar"
@@ -255,6 +296,9 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
         <TouchableOpacity
           style={[styles.toggleButton, viewMode === 'plan' && styles.toggleButtonActive]}
           onPress={() => setViewMode('plan')}
+          accessibilityRole="tab"
+          accessibilityLabel="Plan view"
+          accessibilityState={{ selected: viewMode === 'plan' }}
         >
           <Ionicons
             name="list"
