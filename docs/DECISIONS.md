@@ -36,7 +36,7 @@ React Native with Expo, because:
 
 **Date:** January 2025
 **Decision:** Free app
-**Status:** Confirmed
+**Status:** Confirmed — clarified and extended by Decision 011
 
 ### Context
 Options considered:
@@ -311,31 +311,112 @@ npm run build:web  # Runs expo export + SEO enhancement
 - Rich snippets in search results (FAQ schema)
 - Good social sharing previews
 - PWA installable from browser
+- Note (July 2026): the SEO assets currently ship only with the Expo export
+  (app subdomain). The apex marketing site (`web/`) needs its own robots.ts,
+  sitemap.ts, JSON-LD, and analytics — tracked as part of the fundamentals work.
+
+---
+
+## Decision 011: Monetization Model (settled)
+
+**Date:** July 2026
+**Decision:** Free core product; paid premium features later
+**Status:** Confirmed — supersedes the pending "Pricing Tier" / "Free Tier"
+questions and resolves the tension with Decision 002
+
+### Context
+Earlier notes drifted between "completely free," "paid app only ($9.99–14.99),"
+and "free with premium later." That ambiguity was blocking product decisions.
+
+### Decision
+- Plan generation and tracking stay **free forever** — free distribution is the
+  moat for a domain that earns passive search traffic.
+- Monetization comes from **premium features layered on top**, in likely order:
+  1. Custom plan builder / import-your-own-plan
+  2. AI coach (plan adjustments, missed-workout replanning, Q&A)
+- No paid-app-only option. The web product remains freely accessible.
+- Pricing/packaging decided later, informed by analytics on real usage.
+
+### Consequences
+- The old $9.99–14.99 one-time-purchase options are dropped.
+- Fundamentals (usability, reliability, analytics) come before any paywall.
+- Decision 004 (original plan templates, no trademarked names) becomes a
+  prerequisite for charging money — revisit before the premium launch.
+
+---
+
+## Decision 012: Improvement Priority Order
+
+**Date:** July 2026
+**Decision:** Stability → Usability → SEO/analytics → App-store prep → Monetization
+**Status:** Confirmed
+
+### Context
+Full product review (July 2026) surfaced work across stability, usability,
+SEO, and app-store readiness. Usability explicitly ranks ahead of SEO work.
+
+### Decision
+1. **Stability first:** commit/push discipline, UTC "today" bug, sync conflict
+   safety, Supabase RLS/app_events hardening, error boundary.
+2. **Usability second:** functional km/mi units, short-timeline race stats,
+   first-run landing payoff, desktop web layout, accessibility.
+3. **SEO/analytics third:** apex robots/sitemap/JSON-LD/GA (prereq for ads).
+4. **App-store prep fourth:** scheme, EAS, notifications decision, a11y polish.
+5. **Monetization last**, on top of the above.
+
+---
+
+## Decision 013: Web Layout Strategy
+
+**Date:** July 2026
+**Decision:** Desktop web gets a real desktop layout; the phone layout is for phones
+**Status:** Confirmed
+
+### Context
+The Expo web export currently stretches the phone UI across desktop viewports
+(full-width buttons, unusable month calendar at 1280px+). Search traffic
+includes many desktop visitors.
+
+### Decision
+- Take advantage of the web: responsive layouts that use desktop width
+  (constrained content columns, side-by-side panels, a month calendar that
+  works at desktop sizes).
+- The phone-optimized layout renders only on phone-sized viewports and in the
+  future native iOS/Android app.
+- One codebase: responsive breakpoints in the Expo app, not a fork.
+
+---
+
+## Decision 014: Accessibility Is a Requirement
+
+**Date:** July 2026
+**Decision:** Accessibility is a first-class requirement, not polish
+**Status:** Confirmed
+
+### Context
+Audit found zero accessibility annotations; the web app exposes an almost
+empty accessibility tree (icon-only buttons unlabeled, no roles).
+
+### Decision
+- All interactive elements get `accessibilityRole` + `accessibilityLabel`.
+- Icon-only controls (modal close, calendar nav, sync refresh, password eye)
+  are the first targets; forms get labels.
+- A11y review is part of definition-of-done for new UI, and part of
+  App Store readiness.
 
 ---
 
 ## Pending Decisions
 
-### Pricing Tier
-- Need competitive research
-- Options: $9.99, $12.99, $14.99
-- May A/B test via soft launch
-
-### Free Tier / Trial
-- Options:
-  - A) No free tier (paid app only)
-  - B) Free tier with limited features
-  - C) TestFlight trial period
-- Leaning toward Option A for simplicity
-
 ### Watch App
 - Defer to post-launch
 - Focus on phone app quality first
 
-### Analytics
-- Minimal for privacy
-- Consider: Amplitude, PostHog, or none
-- Defer to MVP completion
+### Analytics stack (partially settled)
+- In place: Google Analytics `G-W2VBGR482T` on the app subdomain + first-party
+  `app_events` in Supabase.
+- Remaining: add analytics to the apex marketing site; decide whether GA is
+  enough or a product-analytics tool (PostHog etc.) joins later.
 
 ---
 
