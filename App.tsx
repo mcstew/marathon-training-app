@@ -146,7 +146,10 @@ function AppContent() {
   return (
     <View style={styles.container}>
       {currentTab === 'today' && (
-        <TodayScreen onWorkoutPress={handleWorkoutPress} />
+        <TodayScreen
+          onWorkoutPress={handleWorkoutPress}
+          onViewCalendar={() => setCurrentTab('calendar')}
+        />
       )}
       {currentTab === 'calendar' && (
         <CalendarScreen onWorkoutPress={handleWorkoutPress} />

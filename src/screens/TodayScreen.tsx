@@ -21,12 +21,14 @@ import {
   usePlanStats,
 } from '../store/useAppStore';
 import { trackEventFireAndForget } from '../services/analytics';
+import { todayLocalStr } from '../utils/dates';
 
 interface TodayScreenProps {
   onWorkoutPress: (workoutId: string) => void;
+  onViewCalendar?: () => void;
 }
 
-export function TodayScreen({ onWorkoutPress }: TodayScreenProps) {
+export function TodayScreen({ onWorkoutPress, onViewCalendar }: TodayScreenProps) {
   const plan = usePlan();
   const todayData = useTodayWorkout();
   const currentWeek = useCurrentWeek();
@@ -42,6 +44,16 @@ export function TodayScreen({ onWorkoutPress }: TodayScreenProps) {
   if (!plan) return null;
 
   const daysUntilRace = differenceInDays(parseDateString(plan.raceDate), today);
+  const todayStr = todayLocalStr();
+  const planStartsInFuture = !!plan.startDate && plan.startDate > todayStr;
+  const raceHasPassed = plan.raceDate < todayStr;
+  const daysUntilStart = planStartsInFuture
+    ? differenceInDays(parseDateString(plan.startDate), today)
+    : 0;
+  // First real workout of the plan, for the pre-start preview
+  const firstWorkout = planStartsInFuture
+    ? plan.weeks[0]?.workouts.find(w => w.type !== 'rest' && w.type !== 'cross') || null
+    : null;
 
   const handleQuickComplete = () => {
     if (todayData?.workout) {
@@ -80,7 +92,13 @@ export function TodayScreen({ onWorkoutPress }: TodayScreenProps) {
           <View>
             <Text style={styles.dateText}>{todayFormatted}</Text>
             <Text style={styles.title}>
-              {todayData?.workout ? "Today's Run" : 'Rest Day'}
+              {planStartsInFuture
+                ? 'Plan Ready'
+                : raceHasPassed
+                ? 'Congrats!'
+                : todayData?.workout
+                ? "Today's Run"
+                : 'Rest Day'}
             </Text>
           </View>
           {currentWeek && (
@@ -92,7 +110,55 @@ export function TodayScreen({ onWorkoutPress }: TodayScreenProps) {
 
         {/* Today's Workout Card */}
         <View style={styles.section}>
-          {todayData?.workout ? (
+          {planStartsInFuture ? (
+            <View style={styles.planReadyCard}>
+              <View style={styles.planReadyIcon}>
+                <Ionicons name="rocket" size={32} color={Colors.primary} />
+              </View>
+              <Text style={styles.planReadyTitle}>Your plan is ready</Text>
+              <Text style={styles.planReadySubtitle}>
+                Training starts{' '}
+                {format(parseDateString(plan.startDate), 'EEEE, MMMM d')}
+                {daysUntilStart === 1
+                  ? ' — tomorrow!'
+                  : ` — in ${daysUntilStart} days`}
+              </Text>
+              {firstWorkout && (
+                <View style={styles.planReadyPreview}>
+                  <Text style={styles.planReadyPreviewLabel}>First up</Text>
+                  <WorkoutCard
+                    workout={firstWorkout}
+                    showDate
+                    compact
+                    onPress={() => onWorkoutPress(firstWorkout.id)}
+                  />
+                </View>
+              )}
+              {onViewCalendar && (
+                <TouchableOpacity
+                  style={styles.planReadyButton}
+                  onPress={onViewCalendar}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="View your full training plan"
+                >
+                  <Ionicons name="calendar" size={18} color={Colors.white} />
+                  <Text style={styles.planReadyButtonText}>See Your Full Plan</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : raceHasPassed ? (
+            <View style={styles.restDayCard}>
+              <View style={styles.restDayIcon}>
+                <Text style={styles.raceDoneEmoji}>🏁</Text>
+              </View>
+              <Text style={styles.restDayTitle}>You made it to race day</Text>
+              <Text style={styles.restDaySubtitle}>
+                This training block is complete. When you're ready for the next
+                one, start a new plan from Settings.
+              </Text>
+            </View>
+          ) : todayData?.workout ? (
             <View>
               <WorkoutCard
                 workout={todayData.workout}
@@ -147,6 +213,8 @@ export function TodayScreen({ onWorkoutPress }: TodayScreenProps) {
             <Text style={styles.statLabel}>
               {calendarWeekWorkouts.length > 0
                 ? `${Math.round(weekProgress * 100)}% Done`
+                : planStartsInFuture
+                ? `Starts in ${daysUntilStart} ${daysUntilStart === 1 ? 'day' : 'days'}`
                 : 'No workouts'}
             </Text>
           </View>
@@ -234,6 +302,66 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.gray400,
     marginTop: 8,
+  },
+  planReadyCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.gray100,
+  },
+  planReadyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  planReadyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.gray900,
+    marginBottom: 8,
+  },
+  planReadySubtitle: {
+    fontSize: 14,
+    color: Colors.gray500,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  planReadyPreview: {
+    alignSelf: 'stretch',
+    marginTop: 20,
+  },
+  planReadyPreviewLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.gray400,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  planReadyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'stretch',
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    padding: 14,
+    gap: 8,
+    marginTop: 16,
+  },
+  planReadyButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.white,
+  },
+  raceDoneEmoji: {
+    fontSize: 32,
   },
   restDayCard: {
     backgroundColor: Colors.gray100,
