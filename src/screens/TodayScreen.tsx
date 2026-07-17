@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInCalendarDays } from 'date-fns';
 import { WorkoutCard } from '../components/WorkoutCard';
 import { Colors } from '../constants/theme';
 import { parseDateString } from '../services/planGenerator';
@@ -43,12 +43,12 @@ export function TodayScreen({ onWorkoutPress, onViewCalendar }: TodayScreenProps
 
   if (!plan) return null;
 
-  const daysUntilRace = differenceInDays(parseDateString(plan.raceDate), today);
+  const daysUntilRace = differenceInCalendarDays(parseDateString(plan.raceDate), today);
   const todayStr = todayLocalStr();
   const planStartsInFuture = !!plan.startDate && plan.startDate > todayStr;
   const raceHasPassed = plan.raceDate < todayStr;
   const daysUntilStart = planStartsInFuture
-    ? differenceInDays(parseDateString(plan.startDate), today)
+    ? differenceInCalendarDays(parseDateString(plan.startDate), today)
     : 0;
   // First real workout of the plan, for the pre-start preview
   const firstWorkout = planStartsInFuture

@@ -1,4 +1,4 @@
-import { format, subDays, addDays, differenceInDays } from 'date-fns';
+import { format, subDays, addDays, differenceInCalendarDays } from 'date-fns';
 import { TrainingPlan, TrainingWeek, Workout, PlanId, WorkoutType } from '../types';
 import { localDateStr } from '../utils/dates';
 
@@ -469,7 +469,7 @@ export function calculatePlanStats(plan: TrainingPlan): import('../types').PlanS
   // Days until race
   const daysUntilRace = Math.max(
     0,
-    differenceInDays(parseDateString(plan.raceDate), today)
+    differenceInCalendarDays(parseDateString(plan.raceDate), today)
   );
 
   // Completion rate (only count past workouts, both completed and total)
