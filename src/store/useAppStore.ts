@@ -3,12 +3,27 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TrainingPlan, UserConfig, PlanId, Workout } from '../types';
 import { generatePlan, calculatePlanStats } from '../services/planGenerator';
+import {
+  performInitialSync,
+  processSyncQueue,
+  queueWorkoutSync,
+  getQueue,
+  clearQueue,
+  SyncResult,
+} from '../services/supabase/sync';
+import { uploadPlan, updatePlan } from '../services/supabase/database';
 
 interface AppState {
   // State
   plan: TrainingPlan | null;
   userConfig: UserConfig;
   isLoading: boolean;
+
+  // Sync state
+  isSyncing: boolean;
+  lastSyncAt: number | null;
+  syncError: string | null;
+  pendingSyncCount: number;
 
   // Actions
   generateUserPlan: (raceDate: Date, planId: PlanId) => void;
@@ -22,6 +37,12 @@ interface AppState {
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   resetApp: () => void;
   setLoading: (loading: boolean) => void;
+
+  // Sync actions
+  performSync: (userId: string) => Promise<SyncResult>;
+  uploadPlanToCloud: (userId: string) => Promise<void>;
+  setPlan: (plan: TrainingPlan) => void;
+  setSyncState: (state: Partial<Pick<AppState, 'isSyncing' | 'lastSyncAt' | 'syncError' | 'pendingSyncCount'>>) => void;
 }
 
 const DEFAULT_CONFIG: UserConfig = {
@@ -38,77 +59,129 @@ export const useAppStore = create<AppState>()(
       userConfig: DEFAULT_CONFIG,
       isLoading: true,
 
+      // Sync state
+      isSyncing: false,
+      lastSyncAt: null,
+      syncError: null,
+      pendingSyncCount: 0,
+
       // Generate a new training plan
       generateUserPlan: (raceDate: Date, planId: PlanId) => {
         const newPlan = generatePlan(raceDate, planId);
+        // Clear sync queue when generating new plan (old queue items are stale)
+        clearQueue().catch(console.error);
         set({
           plan: newPlan,
           userConfig: { ...get().userConfig, isOnboarded: true },
+          pendingSyncCount: 0,
         });
       },
 
       // Toggle workout completion
       toggleWorkoutCompletion: (workoutId: string) => {
-        const { plan } = get();
+        const { plan, pendingSyncCount } = get();
         if (!plan) return;
+
+        let updatedWorkout: Workout | null = null;
 
         const updatedWeeks = plan.weeks.map(week => ({
           ...week,
           workouts: week.workouts.map(workout => {
             if (workout.id === workoutId) {
               const isCompleted = !workout.isCompleted;
-              return {
+              updatedWorkout = {
                 ...workout,
                 isCompleted,
                 isSkipped: isCompleted ? false : workout.isSkipped,
+                completedAt: isCompleted ? Date.now() : undefined,
+                updatedAt: Date.now(),
+                version: (workout.version || 0) + 1,
               };
+              return updatedWorkout;
             }
             return workout;
           }),
         }));
 
-        set({ plan: { ...plan, weeks: updatedWeeks } });
+        set({
+          plan: { ...plan, weeks: updatedWeeks },
+          pendingSyncCount: pendingSyncCount + 1,
+        });
+
+        // Queue for sync
+        if (updatedWorkout) {
+          queueWorkoutSync(updatedWorkout).catch(console.error);
+        }
       },
 
       // Skip a workout
       skipWorkout: (workoutId: string, reason?: string) => {
-        const { plan } = get();
+        const { plan, pendingSyncCount } = get();
         if (!plan) return;
+
+        let updatedWorkout: Workout | null = null;
 
         const updatedWeeks = plan.weeks.map(week => ({
           ...week,
           workouts: week.workouts.map(workout => {
             if (workout.id === workoutId) {
-              return {
+              updatedWorkout = {
                 ...workout,
                 isSkipped: true,
                 isCompleted: false,
                 notes: reason || workout.notes,
+                updatedAt: Date.now(),
+                version: (workout.version || 0) + 1,
               };
+              return updatedWorkout;
             }
             return workout;
           }),
         }));
 
-        set({ plan: { ...plan, weeks: updatedWeeks } });
+        set({
+          plan: { ...plan, weeks: updatedWeeks },
+          pendingSyncCount: pendingSyncCount + 1,
+        });
+
+        // Queue for sync
+        if (updatedWorkout) {
+          queueWorkoutSync(updatedWorkout).catch(console.error);
+        }
       },
 
       // Update workout details (after completion)
       updateWorkoutDetails: (workoutId, details) => {
-        const { plan } = get();
+        const { plan, pendingSyncCount } = get();
         if (!plan) return;
+
+        let updatedWorkout: Workout | null = null;
 
         const updatedWeeks = plan.weeks.map(week => ({
           ...week,
           workouts: week.workouts.map(workout => {
             if (workout.id === workoutId) {
-              return { ...workout, ...details };
+              updatedWorkout = {
+                ...workout,
+                ...details,
+                updatedAt: Date.now(),
+                version: (workout.version || 0) + 1,
+              };
+              return updatedWorkout;
             }
             return workout;
           }),
         }));
 
-        set({ plan: { ...plan, weeks: updatedWeeks } });
+        set({
+          plan: { ...plan, weeks: updatedWeeks },
+          pendingSyncCount: pendingSyncCount + 1,
+        });
+
+        // Queue for sync
+        if (updatedWorkout) {
+          queueWorkoutSync(updatedWorkout).catch(console.error);
+        }
       },
 
       // Set units preference
@@ -123,15 +196,146 @@ export const useAppStore = create<AppState>()(
 
       // Reset app (clear all data)
       resetApp: () => {
+        // Clear sync queue when resetting (old queue items are stale)
+        clearQueue().catch(console.error);
         set({
           plan: null,
           userConfig: DEFAULT_CONFIG,
+          pendingSyncCount: 0,
         });
       },
 
       // Set loading state
       setLoading: (loading) => {
         set({ isLoading: loading });
+      },
+
+      // Set plan directly (used after sync)
+      setPlan: (plan) => {
+        set({
+          plan,
+          userConfig: { ...get().userConfig, isOnboarded: true },
+        });
+      },
+
+      // Update sync state
+      setSyncState: (state) => {
+        set(state);
+      },
+
+      // Perform sync with cloud
+      performSync: async (userId: string) => {
+        const { plan, isSyncing } = get();
+        if (isSyncing) return { action: 'synced' as const };
+
+        set({ isSyncing: true, syncError: null });
+
+        try {
+          // First, perform initial sync to reconcile local and remote
+          const result = await performInitialSync(userId, plan);
+
+          if (result.action === 'use_remote' && result.plan) {
+            // Using remote plan - clear local queue (it's stale)
+            await clearQueue();
+            set({
+              plan: result.plan,
+              userConfig: { ...get().userConfig, isOnboarded: true },
+              lastSyncAt: Date.now(),
+              pendingSyncCount: 0,
+            });
+          } else if (result.action === 'upload_local' && result.plan) {
+            // Just uploaded local plan - now process any pending workout updates
+            // The workouts exist in DB with client_id, so syncWorkoutUpdate can find them
+            set({
+              plan: result.plan,
+              userConfig: { ...get().userConfig, isOnboarded: true },
+            });
+            if (result.plan.remoteId) {
+              await processSyncQueue(userId, result.plan.remoteId);
+            }
+            await clearQueue();
+            set({
+              lastSyncAt: Date.now(),
+              pendingSyncCount: 0,
+            });
+          } else if (result.action === 'synced' && result.plan) {
+            set({
+              plan: result.plan,
+              userConfig: { ...get().userConfig, isOnboarded: true },
+              lastSyncAt: Date.now(),
+            });
+
+            // Get the updated plan state (may have remoteId now after initial sync)
+            const updatedPlan = get().plan;
+
+            // Process any pending queue items
+            if (updatedPlan?.remoteId) {
+              await processSyncQueue(userId, updatedPlan.remoteId);
+            }
+
+            // Check queue length after processing
+            const queue = await getQueue();
+            set({ pendingSyncCount: queue.length });
+          } else if (result.action === 'conflict' && result.localPlan) {
+            // Local and remote plans differ - prefer local (user just created it)
+            // Mark old remote plan as abandoned, upload new local plan
+            console.log('[Sync] Conflict detected - uploading local plan to replace remote');
+
+            // Deactivate the old remote plan if it exists
+            if (result.remotePlan?.remoteId) {
+              try {
+                await updatePlan(result.remotePlan.remoteId, { status: 'abandoned' });
+              } catch (e) {
+                console.error('[Sync] Failed to deactivate old plan:', e);
+              }
+            }
+
+            // Upload the new local plan
+            const uploadedPlan = await uploadPlan(result.localPlan, userId);
+            set({
+              plan: uploadedPlan,
+              userConfig: { ...get().userConfig, isOnboarded: true },
+            });
+            if (uploadedPlan.remoteId) {
+              await processSyncQueue(userId, uploadedPlan.remoteId);
+            }
+            await clearQueue();
+            set({
+              lastSyncAt: Date.now(),
+              pendingSyncCount: 0,
+            });
+          }
+
+          set({ isSyncing: false });
+          return result;
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Sync failed';
+          set({ isSyncing: false, syncError: errorMessage });
+          return { action: 'no_data' as const, error: errorMessage };
+        }
+      },
+
+      // Upload current plan to cloud
+      uploadPlanToCloud: async (userId: string) => {
+        const { plan } = get();
+        if (!plan) return;
+
+        set({ isSyncing: true, syncError: null });
+
+        try {
+          const uploadedPlan = await uploadPlan(plan, userId);
+          set({
+            plan: uploadedPlan,
+            userConfig: { ...get().userConfig, isOnboarded: true },
+            isSyncing: false,
+            lastSyncAt: Date.now(),
+            pendingSyncCount: 0,
+          });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+          set({ isSyncing: false, syncError: errorMessage });
+          throw error;
+        }
       },
     }),
     {
@@ -175,7 +379,7 @@ export const useTodayWorkout = () => {
   return null;
 };
 
-// Get current week
+// Get current training week (plan week)
 export const useCurrentWeek = () => {
   const plan = useAppStore(state => state.plan);
   if (!plan) return null;
@@ -196,3 +400,45 @@ export const useCurrentWeek = () => {
   // If we're before the first week, return the first week
   return plan.weeks[0] || null;
 };
+
+// Get workouts for current CALENDAR week (Sun-Sat)
+export const useCalendarWeekWorkouts = () => {
+  const plan = useAppStore(state => state.plan);
+  if (!plan) return [];
+
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0 = Sunday
+
+  // Get start of calendar week (Sunday)
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - dayOfWeek);
+  weekStart.setHours(0, 0, 0, 0);
+
+  // Get end of calendar week (Saturday)
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  weekEnd.setHours(23, 59, 59, 999);
+
+  const weekStartStr = weekStart.toISOString().split('T')[0];
+  const weekEndStr = weekEnd.toISOString().split('T')[0];
+
+  // Collect all workouts in this calendar week
+  const workouts: import('../types').Workout[] = [];
+  for (const week of plan.weeks) {
+    for (const workout of week.workouts) {
+      if (workout.date >= weekStartStr && workout.date <= weekEndStr) {
+        workouts.push(workout);
+      }
+    }
+  }
+
+  // Sort by date
+  workouts.sort((a, b) => a.date.localeCompare(b.date));
+  return workouts;
+};
+
+// Sync state selectors
+export const useIsSyncing = () => useAppStore(state => state.isSyncing);
+export const useLastSyncAt = () => useAppStore(state => state.lastSyncAt);
+export const useSyncError = () => useAppStore(state => state.syncError);
+export const usePendingSyncCount = () => useAppStore(state => state.pendingSyncCount);

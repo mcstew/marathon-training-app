@@ -7,7 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, WORKOUT_COLORS } from '../constants/theme';
 import { usePlan } from '../store/useAppStore';
@@ -24,14 +24,8 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
   const plan = usePlan();
   const [viewMode, setViewMode] = useState<ViewMode>('calendar');
 
-  // Start calendar on first month that has workouts
-  const firstWorkoutDate = useMemo(() => {
-    if (!plan || plan.weeks.length === 0) return new Date();
-    const firstWorkout = plan.weeks[0].workouts[0];
-    return firstWorkout ? parseDateString(firstWorkout.date) : new Date();
-  }, [plan]);
-
-  const [currentMonth, setCurrentMonth] = useState(firstWorkoutDate);
+  // Always start calendar on current month (today)
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -70,6 +64,9 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
 
   const goToPrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const goToNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+  const goToToday = () => setCurrentMonth(new Date());
+
+  const isCurrentMonth = isSameMonth(currentMonth, new Date());
 
   const renderCalendarView = () => {
     const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -85,9 +82,14 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
           <TouchableOpacity onPress={goToPrevMonth} style={styles.monthNavButton}>
             <Ionicons name="chevron-back" size={24} color={Colors.gray600} />
           </TouchableOpacity>
-          <Text style={styles.monthTitle}>
-            {format(currentMonth, 'MMMM yyyy')}
-          </Text>
+          <TouchableOpacity onPress={goToToday} style={styles.monthTitleButton}>
+            <Text style={styles.monthTitle}>
+              {format(currentMonth, 'MMMM yyyy')}
+            </Text>
+            {!isCurrentMonth && (
+              <Text style={styles.todayLink}>Today</Text>
+            )}
+          </TouchableOpacity>
           <TouchableOpacity onPress={goToNextMonth} style={styles.monthNavButton}>
             <Ionicons name="chevron-forward" size={24} color={Colors.gray600} />
           </TouchableOpacity>
@@ -122,6 +124,7 @@ export function CalendarScreen({ onWorkoutPress }: CalendarScreenProps) {
                   styles.calendarCell,
                   workout && { backgroundColor: getWorkoutColor(workout) },
                   workout?.isCompleted && styles.calendarCellCompleted,
+                  isToday && styles.calendarCellToday,
                 ]}
                 onPress={() => workout && onWorkoutPress(workout.id)}
                 disabled={!workout}
@@ -336,10 +339,19 @@ const styles = StyleSheet.create({
   monthNavButton: {
     padding: 8,
   },
+  monthTitleButton: {
+    alignItems: 'center',
+  },
   monthTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: Colors.gray900,
+  },
+  todayLink: {
+    fontSize: 12,
+    color: Colors.primary,
+    fontWeight: '600',
+    marginTop: 2,
   },
   weekdayHeader: {
     flexDirection: 'row',
@@ -369,6 +381,10 @@ const styles = StyleSheet.create({
   calendarCellCompleted: {
     opacity: 0.7,
   },
+  calendarCellToday: {
+    borderWidth: 2,
+    borderColor: Colors.primary,
+  },
   calendarDayNumber: {
     fontSize: 13,
     fontWeight: '600',
@@ -376,6 +392,7 @@ const styles = StyleSheet.create({
   },
   calendarDayToday: {
     fontWeight: '800',
+    color: Colors.primary,
   },
   calendarDayNoWorkout: {
     color: Colors.gray300,

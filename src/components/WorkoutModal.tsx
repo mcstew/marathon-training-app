@@ -14,6 +14,7 @@ import { Colors, WORKOUT_COLORS } from '../constants/theme';
 import { Workout } from '../types';
 import { useAppStore } from '../store/useAppStore';
 import { parseDateString } from '../services/planGenerator';
+import { trackEventFireAndForget } from '../services/analytics';
 
 interface WorkoutModalProps {
   workout: Workout | null;
@@ -30,12 +31,26 @@ export function WorkoutModal({ workout, visible, onClose }: WorkoutModalProps) {
   const dateFormatted = format(parseDateString(workout.date), 'EEEE, MMMM d');
 
   const handleComplete = () => {
+    const wasCompleted = workout.isCompleted;
     toggleWorkoutCompletion(workout.id);
+    trackEventFireAndForget(
+      wasCompleted ? 'workout_marked_incomplete' : 'workout_completed',
+      {
+        source: 'workout_modal',
+        workoutType: workout.type,
+        distance: workout.distance,
+      }
+    );
     onClose();
   };
 
   const handleSkip = () => {
     skipWorkout(workout.id);
+    trackEventFireAndForget('workout_skipped', {
+      source: 'workout_modal',
+      workoutType: workout.type,
+      distance: workout.distance,
+    });
     onClose();
   };
 

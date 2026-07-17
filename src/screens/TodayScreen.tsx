@@ -17,8 +17,10 @@ import {
   usePlan,
   useTodayWorkout,
   useCurrentWeek,
+  useCalendarWeekWorkouts,
   usePlanStats,
 } from '../store/useAppStore';
+import { trackEventFireAndForget } from '../services/analytics';
 
 interface TodayScreenProps {
   onWorkoutPress: (workoutId: string) => void;
@@ -28,6 +30,7 @@ export function TodayScreen({ onWorkoutPress }: TodayScreenProps) {
   const plan = usePlan();
   const todayData = useTodayWorkout();
   const currentWeek = useCurrentWeek();
+  const calendarWeekWorkouts = useCalendarWeekWorkouts();
   const stats = usePlanStats();
   const toggleWorkoutCompletion = useAppStore(state => state.toggleWorkoutCompletion);
 
@@ -42,16 +45,27 @@ export function TodayScreen({ onWorkoutPress }: TodayScreenProps) {
 
   const handleQuickComplete = () => {
     if (todayData?.workout) {
+      const wasCompleted = todayData.workout.isCompleted;
       toggleWorkoutCompletion(todayData.workout.id);
-      if (!todayData.workout.isCompleted) {
+      trackEventFireAndForget(
+        wasCompleted ? 'workout_marked_incomplete' : 'workout_completed',
+        {
+          source: 'today_quick_action',
+          workoutType: todayData.workout.type,
+          distance: todayData.workout.distance,
+          planId: plan.planId,
+        }
+      );
+      if (!wasCompleted) {
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 2000);
       }
     }
   };
 
-  const weekProgress = currentWeek
-    ? currentWeek.workouts.filter(w => w.isCompleted).length / currentWeek.workouts.length
+  // Calculate week progress based on calendar week workouts
+  const weekProgress = calendarWeekWorkouts.length > 0
+    ? calendarWeekWorkouts.filter(w => w.isCompleted).length / calendarWeekWorkouts.length
     : 0;
 
   return (
@@ -112,19 +126,28 @@ export function TodayScreen({ onWorkoutPress }: TodayScreenProps) {
           <View style={styles.statCard}>
             <Text style={styles.statSectionTitle}>This Week</Text>
             <View style={styles.weekDots}>
-              {currentWeek?.workouts.map((w, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.weekDot,
-                    w.isCompleted && styles.weekDotCompleted,
-                    w.type === 'rest' && styles.weekDotRest,
-                  ]}
-                />
-              ))}
+              {calendarWeekWorkouts.length > 0 ? (
+                calendarWeekWorkouts.map((w, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.weekDot,
+                      w.isCompleted && styles.weekDotCompleted,
+                      w.type === 'rest' && styles.weekDotRest,
+                    ]}
+                  />
+                ))
+              ) : (
+                // Show 7 empty dots if no workouts this week
+                Array.from({ length: 7 }).map((_, i) => (
+                  <View key={i} style={[styles.weekDot, styles.weekDotRest]} />
+                ))
+              )}
             </View>
             <Text style={styles.statLabel}>
-              {Math.round(weekProgress * 100)}% Done
+              {calendarWeekWorkouts.length > 0
+                ? `${Math.round(weekProgress * 100)}% Done`
+                : 'No workouts'}
             </Text>
           </View>
         </View>

@@ -463,13 +463,14 @@ export function calculatePlanStats(plan: TrainingPlan): import('../types').PlanS
     differenceInDays(parseDateString(plan.raceDate), today)
   );
 
-  // Completion rate (only count past workouts)
+  // Completion rate (only count past workouts, both completed and total)
   const pastWorkouts = allWorkouts.filter(
-    w => w.date < todayStr && w.type !== 'rest' && w.type !== 'cross'
+    w => w.date <= todayStr && w.type !== 'rest' && w.type !== 'cross'
   );
+  const pastCompletedWorkouts = pastWorkouts.filter(w => w.isCompleted).length;
   const completionRate =
     pastWorkouts.length > 0
-      ? Math.round((completedWorkouts / pastWorkouts.length) * 100)
+      ? Math.round((pastCompletedWorkouts / pastWorkouts.length) * 100)
       : 0;
 
   return {

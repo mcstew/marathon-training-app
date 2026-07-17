@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  TextInput,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,21 +17,88 @@ import { PLANS } from '../constants/plans';
 import { useAppStore } from '../store/useAppStore';
 import { PlanId } from '../types';
 import { addWeeks, differenceInWeeks, format } from 'date-fns';
+import { WebLandingPage } from '../components/WebLandingPage';
+import { trackEventFireAndForget } from '../services/analytics';
 
-type Step = 'welcome' | 'date' | 'plan';
+type Step = 'landing' | 'welcome' | 'date' | 'plan';
 
-export function OnboardingScreen() {
-  const [step, setStep] = useState<Step>('welcome');
+interface OnboardingScreenProps {
+  onLoginPress?: () => void;
+}
+
+function isAppHost(): boolean {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return false;
+
+  const hostname = window.location.hostname.toLowerCase();
+  return (
+    hostname === 'app.marathontrainingplan.com' ||
+    hostname.startsWith('app.') ||
+    hostname.includes('marathon-training-app')
+  );
+}
+
+function getInitialStep(): Step {
+  if (Platform.OS !== 'web') return 'welcome';
+  if (typeof window === 'undefined') return 'landing';
+
+  const params = new URLSearchParams(window.location.search);
+  const start = params.get('start') ?? params.get('flow') ?? '';
+  const hash = window.location.hash.replace(/^#\/?/, '');
+  const directRaceDateEntries = new Set([
+    'create-plan',
+    'date',
+    'plan',
+    'race',
+    'race-date',
+    'start',
+    'when-is-your-race',
+  ]);
+
+  if (directRaceDateEntries.has(start) || directRaceDateEntries.has(hash)) {
+    return 'date';
+  }
+
+  if (isAppHost()) {
+    return 'date';
+  }
+
+  return 'landing';
+}
+
+export function OnboardingScreen({ onLoginPress }: OnboardingScreenProps) {
+  // On the app subdomain, start in the product flow. The marketing site owns the public landing page.
+  const [step, setStep] = useState<Step>(() => getInitialStep());
+  const startsAtDate = useRef(step === 'date');
   const [raceDate, setRaceDate] = useState<Date | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<PlanId | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const generateUserPlan = useAppStore(state => state.generateUserPlan);
 
-  const minDate = addWeeks(new Date(), 12);
+  // Allow any future date (minimum is tomorrow)
+  const minDate = new Date();
+  minDate.setDate(minDate.getDate() + 1); // Tomorrow
   const weeksUntilRace = raceDate
     ? differenceInWeeks(raceDate, new Date())
     : null;
+
+  const webDateInputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    if (step === 'landing') {
+      trackEventFireAndForget('marketing_landing_viewed');
+    } else {
+      trackEventFireAndForget('onboarding_started', {
+        entry: Platform.OS === 'web' ? 'direct_race_date' : 'mobile',
+        platform: Platform.OS,
+      });
+    }
+  }, []);
+
+  const handleStart = () => {
+    trackEventFireAndForget('onboarding_started', { platform: Platform.OS });
+    setStep('date');
+  };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
@@ -38,11 +106,29 @@ export function OnboardingScreen() {
     }
     if (selectedDate) {
       setRaceDate(selectedDate);
+      trackEventFireAndForget('race_date_selected', {
+        raceDate: format(selectedDate, 'yyyy-MM-dd'),
+      });
+    }
+  };
+
+  const handleWebDateChange = (dateString: string) => {
+    if (dateString) {
+      const date = new Date(dateString + 'T00:00:00');
+      setRaceDate(date);
+      trackEventFireAndForget('race_date_selected', {
+        raceDate: dateString,
+      });
     }
   };
 
   const handleGenerate = () => {
     if (raceDate && selectedPlanId) {
+      trackEventFireAndForget('plan_generated', {
+        planId: selectedPlanId,
+        raceDate: format(raceDate, 'yyyy-MM-dd'),
+        weeksUntilRace,
+      });
       generateUserPlan(raceDate, selectedPlanId);
     }
   };
@@ -78,7 +164,7 @@ export function OnboardingScreen() {
       <View style={styles.bottomSection}>
         <Button
           title="Get Started"
-          onPress={() => setStep('date')}
+          onPress={handleStart}
           size="large"
           fullWidth
         />
@@ -89,9 +175,11 @@ export function OnboardingScreen() {
   const renderDatePicker = () => (
     <View style={styles.stepContainer}>
       <View style={styles.headerSection}>
-        <TouchableOpacity onPress={() => setStep('welcome')}>
-          <Ionicons name="arrow-back" size={24} color={Colors.gray600} />
-        </TouchableOpacity>
+        {!startsAtDate.current && (
+          <TouchableOpacity onPress={() => setStep('welcome')}>
+            <Ionicons name="arrow-back" size={24} color={Colors.gray600} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.contentSection}>
@@ -100,24 +188,48 @@ export function OnboardingScreen() {
           We'll build your schedule backwards from the big day.
         </Text>
 
-        <TouchableOpacity
-          style={styles.dateButton}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <Ionicons name="calendar-outline" size={24} color={Colors.primary} />
-          <Text style={styles.dateButtonText}>
-            {raceDate ? format(raceDate, 'MMMM d, yyyy') : 'Select race date'}
-          </Text>
-        </TouchableOpacity>
+        {Platform.OS === 'web' ? (
+          <View style={styles.dateButton}>
+            <Ionicons name="calendar-outline" size={24} color={Colors.primary} />
+            <input
+              type="date"
+              style={{
+                flex: 1,
+                fontSize: 18,
+                color: Colors.gray900,
+                marginLeft: 12,
+                border: 'none',
+                outline: 'none',
+                backgroundColor: 'transparent',
+                fontFamily: 'inherit',
+              }}
+              value={raceDate ? format(raceDate, 'yyyy-MM-dd') : ''}
+              onChange={(e: any) => handleWebDateChange(e.target.value)}
+              min={format(minDate, 'yyyy-MM-dd')}
+            />
+          </View>
+        ) : (
+          <>
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Ionicons name="calendar-outline" size={24} color={Colors.primary} />
+              <Text style={styles.dateButtonText}>
+                {raceDate ? format(raceDate, 'MMMM d, yyyy') : 'Select race date'}
+              </Text>
+            </TouchableOpacity>
 
-        {showDatePicker && (
-          <DateTimePicker
-            value={raceDate || minDate}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={handleDateChange}
-            minimumDate={minDate}
-          />
+            {showDatePicker && (
+              <DateTimePicker
+                value={raceDate || minDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={handleDateChange}
+                minimumDate={minDate}
+              />
+            )}
+          </>
         )}
 
         {raceDate && weeksUntilRace !== null && (
@@ -146,6 +258,14 @@ export function OnboardingScreen() {
           fullWidth
           disabled={!raceDate}
         />
+        {onLoginPress && (
+          <View style={styles.loginPrompt}>
+            <Text style={styles.loginPromptText}>Already have a plan?</Text>
+            <TouchableOpacity onPress={onLoginPress}>
+              <Text style={styles.loginPromptLink}>Log in</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -210,6 +330,11 @@ export function OnboardingScreen() {
       </View>
     </View>
   );
+
+  // Web landing page
+  if (step === 'landing' && Platform.OS === 'web') {
+    return <WebLandingPage onGetStarted={handleStart} />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -302,6 +427,14 @@ const styles = StyleSheet.create({
     color: Colors.gray900,
     marginLeft: 12,
   },
+  webDateInput: {
+    flex: 1,
+    fontSize: 18,
+    color: Colors.gray900,
+    marginLeft: 12,
+    borderWidth: 0,
+    outlineWidth: 0,
+  } as any,
   weeksContainer: {
     alignItems: 'center',
     marginTop: 32,
@@ -389,5 +522,21 @@ const styles = StyleSheet.create({
   },
   bottomSection: {
     paddingTop: 16,
+  },
+  loginPrompt: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 18,
+  },
+  loginPromptText: {
+    color: Colors.gray500,
+    fontSize: 14,
+  },
+  loginPromptLink: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

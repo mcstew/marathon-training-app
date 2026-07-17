@@ -30,6 +30,11 @@ export interface Workout {
   actualDuration?: number; // minutes
   notes?: string;
   perceivedEffort?: 1 | 2 | 3 | 4 | 5;
+  // Sync fields
+  remoteId?: string; // Supabase UUID
+  version?: number; // For conflict resolution
+  updatedAt?: number; // Timestamp for sync
+  completedAt?: number; // When workout was completed
 }
 
 // A week of training
@@ -50,6 +55,10 @@ export interface TrainingPlan {
   startDate: string;
   weeks: TrainingWeek[];
   createdAt: number;
+  // Sync fields
+  remoteId?: string; // Supabase UUID
+  syncedAt?: number; // Last sync timestamp
+  status?: 'active' | 'completed' | 'abandoned';
 }
 
 // User configuration

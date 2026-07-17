@@ -24,7 +24,14 @@
       "package": "com.marathontrainingplan.app"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "name": "Marathon Training Plan - Free 18-Week Training Schedules",
+      "shortName": "Marathon Plan",
+      "description": "Free personalized marathon training plans. Get an 18-week schedule tailored to your race day with proven Hal Higdon methodology. Track workouts, sync across devices, works offline.",
+      "lang": "en",
+      "themeColor": "#2563EB",
+      "backgroundColor": "#F8FAFC"
     },
     "plugins": [
       "expo-asset",

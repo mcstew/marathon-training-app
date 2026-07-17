@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,25 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { Colors } from '../constants/theme';
 import { parseDateString } from '../services/planGenerator';
-import { useAppStore, usePlan, useUserConfig } from '../store/useAppStore';
+import {
+  useAppStore,
+  usePlan,
+  useUserConfig,
+  useIsSyncing,
+  useLastSyncAt,
+  useSyncError,
+  usePendingSyncCount,
+} from '../store/useAppStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { AuthScreen } from './AuthScreen';
+import { trackEventFireAndForget } from '../services/analytics';
 
 interface SettingRowProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -62,7 +75,20 @@ function SettingRow({ icon, label, value, onPress, destructive }: SettingRowProp
 export function SettingsScreen() {
   const plan = usePlan();
   const userConfig = useUserConfig();
-  const { setUnits, resetApp } = useAppStore();
+  const { setUnits, resetApp, performSync, uploadPlanToCloud } = useAppStore();
+  const { user, isAuthenticated, signOut } = useAuthStore();
+  const isSyncing = useIsSyncing();
+  const lastSyncAt = useLastSyncAt();
+  const syncError = useSyncError();
+  const pendingSyncCount = usePendingSyncCount();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // Trigger sync when user logs in
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      performSync(user.id);
+    }
+  }, [isAuthenticated, user?.id]);
 
   const handleToggleUnits = () => {
     setUnits(userConfig.units === 'miles' ? 'km' : 'miles');
@@ -83,6 +109,42 @@ export function SettingsScreen() {
     );
   };
 
+  const handleSignOut = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out? Your local data will be preserved.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          onPress: () => signOut(),
+        },
+      ]
+    );
+  };
+
+  const handleSync = async () => {
+    if (user?.id) {
+      trackEventFireAndForget('sync_requested', {
+        pendingSyncCount,
+      });
+      const result = await performSync(user.id);
+      if (result.error) {
+        trackEventFireAndForget('sync_failed', {
+          error: result.error,
+        });
+      }
+    }
+  };
+
+  const getSyncStatusText = () => {
+    if (isSyncing) return 'Syncing...';
+    if (syncError) return 'Sync failed';
+    if (pendingSyncCount > 0) return `${pendingSyncCount} pending`;
+    if (lastSyncAt) return `Synced ${formatDistanceToNow(lastSyncAt, { addSuffix: true })}`;
+    return 'Not synced';
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -91,6 +153,80 @@ export function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.title}>Settings</Text>
+
+        {/* Account Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <View style={styles.sectionContent}>
+            {isAuthenticated ? (
+              <>
+                <View style={styles.accountInfo}>
+                  <View style={styles.avatarContainer}>
+                    <Ionicons name="person" size={24} color={Colors.white} />
+                  </View>
+                  <View style={styles.accountDetails}>
+                    <Text style={styles.accountEmail}>{user?.email}</Text>
+                    <Text style={styles.accountStatus}>
+                      {user?.email_confirmed_at ? 'Verified' : 'Pending verification'}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.settingRow}
+                  onPress={handleSync}
+                  disabled={isSyncing}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.settingLeft}>
+                    <View style={styles.settingIconContainer}>
+                      {isSyncing ? (
+                        <ActivityIndicator size="small" color={Colors.gray600} />
+                      ) : (
+                        <Ionicons
+                          name={syncError ? 'cloud-offline' : 'cloud-done'}
+                          size={20}
+                          color={syncError ? Colors.warning : Colors.gray600}
+                        />
+                      )}
+                    </View>
+                    <Text style={styles.settingLabel}>Sync Status</Text>
+                  </View>
+                  <View style={styles.settingRight}>
+                    <Text style={[
+                      styles.settingValue,
+                      syncError && styles.syncErrorText
+                    ]}>
+                      {getSyncStatusText()}
+                    </Text>
+                    {!isSyncing && (
+                      <Ionicons name="refresh" size={16} color={Colors.gray300} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+                <SettingRow
+                  icon="log-out"
+                  label="Sign Out"
+                  onPress={handleSignOut}
+                />
+              </>
+            ) : (
+              <>
+                <View style={styles.signInPrompt}>
+                  <Ionicons name="cloud-outline" size={32} color={Colors.gray400} />
+                  <Text style={styles.signInPromptTitle}>Sync Your Training</Text>
+                  <Text style={styles.signInPromptText}>
+                    Sign in to back up your data and access it from any device
+                  </Text>
+                </View>
+                <SettingRow
+                  icon="person-add"
+                  label="Sign In or Create Account"
+                  onPress={() => setShowAuthModal(true)}
+                />
+              </>
+            )}
+          </View>
+        </View>
 
         {/* Preferences Section */}
         <View style={styles.section}>
@@ -152,6 +288,19 @@ export function SettingsScreen() {
           <Text style={styles.footerSubtext}>Run fast, run far.</Text>
         </View>
       </ScrollView>
+
+      {/* Auth Modal */}
+      <Modal
+        visible={showAuthModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowAuthModal(false)}
+      >
+        <AuthScreen
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={() => setShowAuthModal(false)}
+        />
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -228,7 +377,7 @@ const styles = StyleSheet.create({
   settingRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
   settingValue: {
     fontSize: 14,
@@ -266,5 +415,56 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.gray300,
     marginTop: 4,
+  },
+  accountInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.gray100,
+  },
+  avatarContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  accountDetails: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  accountEmail: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.gray900,
+  },
+  accountStatus: {
+    fontSize: 12,
+    color: Colors.gray500,
+    marginTop: 2,
+  },
+  signInPrompt: {
+    alignItems: 'center',
+    padding: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.gray100,
+  },
+  signInPromptTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.gray900,
+    marginTop: 12,
+  },
+  signInPromptText: {
+    fontSize: 14,
+    color: Colors.gray500,
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 20,
+  },
+  syncErrorText: {
+    color: Colors.warning,
   },
 });

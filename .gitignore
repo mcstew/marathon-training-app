@@ -3,6 +3,7 @@ node_modules/
 
 # Expo
 .expo/
+.next/
 dist/
 web-build/
 
@@ -46,3 +47,4 @@ coverage/
 *.log
 tmp/
 temp/
+.vercel
