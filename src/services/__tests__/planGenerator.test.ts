@@ -86,6 +86,40 @@ describe('calculatePlanStats', () => {
     expect(stats.daysUntilRace).toBe(128);
   });
 
+  it('short-timeline plan: pre-dated weeks are not counted as missed', () => {
+    vi.setSystemTime(new Date(2026, 6, 17, 12, 0, 0)); // Jul 17
+    // Race only ~8 weeks away — weeks 1-9 of the 18-week layout are pre-dated
+    const plan = generatePlan(new Date(2026, 8, 13), 'novice1'); // Sep 13
+    const stats = calculatePlanStats(plan);
+
+    // Pre-dated workouts must not tank the completion rate or streaks
+    expect(stats.completionRate).toBe(0);
+    expect(stats.currentStreak).toBe(0);
+    expect(stats.skippedWorkouts).toBe(0);
+
+    // Totals only include workouts the user could actually do
+    const runnable = plan.weeks
+      .flatMap(w => w.workouts)
+      .filter(w => w.type !== 'rest' && w.type !== 'cross');
+    const doable = runnable.filter(w => w.date >= '2026-07-17');
+    expect(stats.totalWorkouts).toBe(doable.length);
+    expect(stats.totalWorkouts).toBeLessThan(runnable.length);
+  });
+
+  it('short-timeline plan: backfilled pre-dated workouts still count', () => {
+    vi.setSystemTime(new Date(2026, 6, 17, 12, 0, 0));
+    const plan = generatePlan(new Date(2026, 8, 13), 'novice1');
+    const runnable = plan.weeks
+      .flatMap(w => w.workouts)
+      .filter(w => w.type !== 'rest' && w.type !== 'cross');
+    const preDated = runnable.filter(w => w.date < '2026-07-17');
+    preDated[0].isCompleted = true;
+
+    const stats = calculatePlanStats(plan);
+    expect(stats.completedWorkouts).toBe(1);
+    expect(stats.completionRate).toBe(100); // 1 of 1 tracked past workouts
+  });
+
   it('counts completions and streaks', () => {
     vi.setSystemTime(new Date(2026, 6, 17, 12, 0, 0));
     const plan = generatePlan(new Date(2026, 10, 22), 'novice1');

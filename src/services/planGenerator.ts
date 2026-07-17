@@ -1,5 +1,6 @@
 import { format, subDays, addDays, differenceInDays } from 'date-fns';
 import { TrainingPlan, TrainingWeek, Workout, PlanId, WorkoutType } from '../types';
+import { localDateStr } from '../utils/dates';
 
 const PLAN_DURATION_WEEKS = 18;
 
@@ -416,6 +417,14 @@ export function calculatePlanStats(plan: TrainingPlan): import('../types').PlanS
   let tempStreak = 0;
   let currentWeek = 1;
 
+  // Plans generated <18 weeks before race day include weeks dated before the
+  // user ever had the plan. Those pre-dated workouts must not count as
+  // "missed" — they're excluded from totals, streaks, and completion rate
+  // unless the user explicitly backfilled them (completed/skipped).
+  const trackingStart = localDateStr(new Date(plan.createdAt));
+  const isTracked = (w: Workout) =>
+    w.date >= trackingStart || w.isCompleted || w.isSkipped;
+
   // Flatten all workouts and sort by date
   const allWorkouts = plan.weeks
     .flatMap(w => w.workouts)
@@ -423,7 +432,7 @@ export function calculatePlanStats(plan: TrainingPlan): import('../types').PlanS
 
   for (const workout of allWorkouts) {
     // Only count run/pace workouts (not rest/cross)
-    if (workout.type !== 'rest' && workout.type !== 'cross') {
+    if (workout.type !== 'rest' && workout.type !== 'cross' && isTracked(workout)) {
       totalWorkouts++;
       totalPlannedMiles += workout.distance || 0;
 
@@ -465,7 +474,11 @@ export function calculatePlanStats(plan: TrainingPlan): import('../types').PlanS
 
   // Completion rate (only count past workouts, both completed and total)
   const pastWorkouts = allWorkouts.filter(
-    w => w.date <= todayStr && w.type !== 'rest' && w.type !== 'cross'
+    w =>
+      w.date <= todayStr &&
+      w.type !== 'rest' &&
+      w.type !== 'cross' &&
+      isTracked(w)
   );
   const pastCompletedWorkouts = pastWorkouts.filter(w => w.isCompleted).length;
   const completionRate =
