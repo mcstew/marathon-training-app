@@ -278,28 +278,51 @@ export const useAppStore = create<AppState>()(
             const queue = await getQueue();
             set({ pendingSyncCount: queue.length });
           } else if (result.action === 'conflict' && result.localPlan) {
-            // Local and remote plans differ - prefer local (user just created it)
-            // Mark old remote plan as abandoned, upload new local plan
-            console.log('[Sync] Conflict detected - uploading local plan to replace remote');
+            // Local and remote are different plans. Never silently discard
+            // training history: the plan with more completed workouts wins
+            // (tie goes to local, the device in hand), and the loser is kept
+            // in the cloud as 'abandoned' so nothing is ever unrecoverable.
+            const countCompleted = (p: TrainingPlan) =>
+              p.weeks.flatMap(w => w.workouts).filter(w => w.isCompleted).length;
+            const localScore = countCompleted(result.localPlan);
+            const remoteScore = result.remotePlan ? countCompleted(result.remotePlan) : 0;
 
-            // Deactivate the old remote plan if it exists
-            if (result.remotePlan?.remoteId) {
-              try {
-                await updatePlan(result.remotePlan.remoteId, { status: 'abandoned' });
-              } catch (e) {
-                console.error('[Sync] Failed to deactivate old plan:', e);
+            if (localScore >= remoteScore) {
+              console.log(
+                `[Sync] Conflict: keeping local plan (${localScore} vs ${remoteScore} completed)`
+              );
+              // Retire the remote plan, then upload local as the active plan
+              if (result.remotePlan?.remoteId) {
+                try {
+                  await updatePlan(result.remotePlan.remoteId, { status: 'abandoned' });
+                } catch (e) {
+                  console.error('[Sync] Failed to deactivate old plan:', e);
+                }
               }
+              const uploadedPlan = await uploadPlan(result.localPlan, userId);
+              set({
+                plan: uploadedPlan,
+                userConfig: { ...get().userConfig, isOnboarded: true },
+              });
+              if (uploadedPlan.remoteId) {
+                await processSyncQueue(userId, uploadedPlan.remoteId);
+              }
+            } else {
+              console.log(
+                `[Sync] Conflict: adopting remote plan (${remoteScore} vs ${localScore} completed)`
+              );
+              // Back up the losing local plan to the cloud before replacing it
+              try {
+                await uploadPlan({ ...result.localPlan, status: 'abandoned' }, userId);
+              } catch (e) {
+                console.error('[Sync] Failed to back up local plan:', e);
+              }
+              set({
+                plan: result.remotePlan,
+                userConfig: { ...get().userConfig, isOnboarded: true },
+              });
             }
 
-            // Upload the new local plan
-            const uploadedPlan = await uploadPlan(result.localPlan, userId);
-            set({
-              plan: uploadedPlan,
-              userConfig: { ...get().userConfig, isOnboarded: true },
-            });
-            if (uploadedPlan.remoteId) {
-              await processSyncQueue(userId, uploadedPlan.remoteId);
-            }
             await clearQueue();
             set({
               lastSyncAt: Date.now(),
@@ -342,6 +365,18 @@ export const useAppStore = create<AppState>()(
     {
       name: 'marathon-training-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      // Persist only durable state. Transient flags (isSyncing, syncError)
+      // used to be serialized too — an app killed mid-sync rehydrated with
+      // isSyncing:true and performSync early-returned forever.
+      partialize: (state) => ({
+        plan: state.plan,
+        userConfig: state.userConfig,
+        lastSyncAt: state.lastSyncAt,
+        pendingSyncCount: state.pendingSyncCount,
+      }),
+      // Pre-version-1 storage has the same shape for the fields we keep
+      migrate: (persisted) => persisted as Partial<AppState>,
       onRehydrateStorage: () => (state) => {
         // After rehydration, set loading to false
         state?.setLoading(false);

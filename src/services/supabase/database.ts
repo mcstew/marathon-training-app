@@ -53,18 +53,19 @@ export async function getActivePlan(userId: string): Promise<{
   workouts: DbWorkout[];
 } | null> {
   const supabase = getSupabaseClient();
-  // Get active plan
+  // Get the newest active plan. maybeSingle + limit keeps sync working even
+  // if legacy duplicate active rows exist (single() would error forever).
   const { data: planData, error: planError } = await supabase
     .from('training_plans')
     .select('*')
     .eq('user_id', userId)
     .eq('status', 'active')
-    .single();
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  if (planError) {
-    if (planError.code === 'PGRST116') return null; // No active plan
-    throw planError;
-  }
+  if (planError) throw planError;
+  if (!planData) return null; // No active plan
 
   // Get workouts for this plan
   const { data: workoutsData, error: workoutsError } = await supabase
@@ -154,13 +155,27 @@ export async function getWorkoutByClientId(
     .select('*')
     .eq('client_id', clientId)
     .eq('user_id', userId)
-    .single();
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  if (error) {
-    if (error.code === 'PGRST116') return null;
-    throw error;
-  }
+  if (error) throw error;
   return data;
+}
+
+/**
+ * Mark any currently-active plans for this user as abandoned.
+ * Called before uploading a new plan so the one-active-plan invariant holds.
+ */
+export async function deactivateActivePlans(userId: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from('training_plans')
+    .update({ status: 'abandoned' })
+    .eq('user_id', userId)
+    .eq('status', 'active');
+
+  if (error) throw error;
 }
 
 export async function upsertWorkout(
@@ -317,6 +332,12 @@ export async function uploadPlan(
   userId: string
 ): Promise<TrainingPlan> {
   const { plan: dbPlan, workouts: dbWorkouts } = localPlanToDb(plan, userId);
+
+  // Keep the one-active-plan invariant: retire any existing active plan
+  // before inserting a new active one (duplicates used to wedge sync).
+  if ((dbPlan.status || 'active') === 'active') {
+    await deactivateActivePlans(userId);
+  }
 
   // Create the plan first
   const createdPlan = await createPlan(dbPlan);

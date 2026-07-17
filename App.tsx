@@ -13,8 +13,10 @@ import { SettingsScreen } from './src/screens/SettingsScreen';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { TabBar, TabName } from './src/components/TabBar';
 import { WorkoutModal } from './src/components/WorkoutModal';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { Colors } from './src/constants/theme';
 import { Workout } from './src/types';
+import { isSupabaseConfigured } from './src/services/supabase/client';
 
 type AuthDeepLinkMode = 'signIn' | 'signUp' | null;
 
@@ -125,7 +127,7 @@ function AppContent() {
     );
   }
 
-  if (authDeepLinkMode && !isAuthenticated) {
+  if (authDeepLinkMode && !isAuthenticated && isSupabaseConfigured) {
     return (
       <AuthScreen
         initialMode={authDeepLinkMode}
@@ -167,7 +169,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
-      <AppContent />
+      <ErrorBoundary>
+        <AppContent />
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }

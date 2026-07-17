@@ -25,6 +25,7 @@ import {
 } from '../store/useAppStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { AuthScreen } from './AuthScreen';
+import { isSupabaseConfigured } from '../services/supabase/client';
 import { trackEventFireAndForget } from '../services/analytics';
 
 interface SettingRowProps {
@@ -154,7 +155,9 @@ export function SettingsScreen() {
       >
         <Text style={styles.title}>Settings</Text>
 
-        {/* Account Section */}
+        {/* Account Section (hidden entirely when Supabase isn't configured,
+            otherwise the sign-in button would just throw) */}
+        {isSupabaseConfigured && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
           <View style={styles.sectionContent}>
@@ -227,6 +230,7 @@ export function SettingsScreen() {
             )}
           </View>
         </View>
+        )}
 
         {/* Preferences Section */}
         <View style={styles.section}>
